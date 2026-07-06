@@ -1,0 +1,131 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR" style="font-size: 14px;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#030712">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3003/3003244.png">
+    <title>ZenOS - Finance Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              background: 'var(--background)',
+              foreground: 'var(--foreground)',
+              lightBg: '#F8F9FA',
+              lightText: '#212529',
+              lightSecText: '#6C757D'
+            }
+          }
+        }
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        html, body {
+            overscroll-behavior-y: none; /* Impede pull-to-refresh */
+            overscroll-behavior-x: none;
+            height: 100%;
+            overflow: hidden; /* O App.tsx gerencia o scroll interno */
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        /* Glass effect adaptive */
+        .glass { 
+            background: rgba(255, 255, 255, 0.85); 
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px); 
+            border-bottom: 1px solid rgba(0,0,0,0.05); 
+        }
+        .dark .glass {
+            background: rgba(15, 23, 42, 0.7); 
+            border-bottom: 1px solid rgba(255,255,255,0.05); 
+        }
+        
+        input, button, select, textarea { font-size: 16px !important; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.4); border-radius: 10px; border: 2px solid transparent; background-clip: content-box; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.6); border-radius: 10px; border: 2px solid transparent; background-clip: content-box; }
+        body { scrollbar-width: thin; scrollbar-color: rgba(99, 102, 241, 0.4) transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+        
+        /* Previne glitches (como linhas horizontais roxas/azuis) de renderização por GPU em dispositivos móveis */
+        body, html {
+            background-color: #030712 !important; /* Força fundo escuro nativo */
+        }
+        @media (prefers-color-scheme: light) {
+            body, html {
+                background-color: #f8fafc !important; /* Ajusta conforme o prefered scheme */
+            }
+        }
+        
+        /* Otimização de GPU para animações */
+        .animate-in {
+            will-change: transform, opacity;
+            transform: translate3d(0, 0, 0);
+            -webkit-transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-slate-50 dark:bg-[#030712] text-[#212529] dark:text-slate-200 overflow-hidden transition-colors duration-300">
+    <div id="root"></div>
+    <script>
+      const isDevOrPreview = window.location.hostname.includes('localhost') || 
+                             window.location.hostname.includes('127.0.0.1') || 
+                             window.location.hostname.includes('run.app') || 
+                             window.location.hostname.includes('aistudio');
+
+      if ('serviceWorker' in navigator) {
+        if (isDevOrPreview) {
+          // Desativa o Service Worker no preview de desenvolvimento e limpa caches velhos que travam o preview
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            for (let registration of registrations) {
+              registration.unregister();
+            }
+          });
+          if (window.caches) {
+            caches.keys().then((names) => {
+              for (let name of names) {
+                caches.delete(name);
+              }
+            });
+          }
+          console.log("Service Worker desativado no ambiente de dev/preview para evitar conflitos.");
+        } else if (window.location.protocol === 'https:') {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').catch(() => {});
+          });
+        }
+      }
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>

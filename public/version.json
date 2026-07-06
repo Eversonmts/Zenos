@@ -1,0 +1,6 @@
+{
+  "version": "2.1.2",
+  "name": "ZenOS Finance",
+  "releaseDate": "2026-06-19",
+  "notes": "Melhorias de desempenho, estabilidade na sincronização multibanco e suporte a múltiplos dispositivos."
+}

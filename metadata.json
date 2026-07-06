@@ -1,0 +1,8 @@
+{
+  "name": "Arkad Finance",
+  "description": "Uma plataforma completa para gestão financeira pessoal com insights inteligentes impulsionados por IA, controle de gastos, metas de economia e consultoria financeira em tempo real.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
