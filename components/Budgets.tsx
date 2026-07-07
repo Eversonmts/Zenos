@@ -33,7 +33,7 @@ export default function Budgets({ budgets, categories, transactions, onAdd, onDe
     const cat = categories.find(c => c.id === newBudget.category_id);
     onAdd({
       ...newBudget as Budget,
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       category_name: cat?.name || 'Geral',
       created_at: new Date().toISOString()
     });

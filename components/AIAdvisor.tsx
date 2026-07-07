@@ -166,7 +166,7 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
 
   const confirmTransaction = (msgId: string, tx: Partial<Transaction>) => {
     const fullTx: Transaction = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       user_id: '', // to be set by caller or handleAddTransaction
       description: tx.description || 'Voz Contexto',
       amount: tx.amount || 0,

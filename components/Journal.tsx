@@ -34,7 +34,7 @@ export default function Journal({ entries, onAdd, onDelete }: JournalProps) {
     if (!newEntry.title || !newEntry.content) return;
     onAdd({
       ...newEntry as JournalEntry,
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       created_at: new Date().toISOString()
     });
     setShowAddModal(false);

@@ -95,7 +95,7 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
 
     if (showModal === 'add') {
       const account: Account = { 
-        id: Math.random().toString(36).substr(2, 9), 
+        id: crypto.randomUUID(), 
         user_id: activeUserId,
         name: currentAccount.name || 'Nova Conta', 
         type: currentAccount.type || 'bank',

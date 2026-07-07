@@ -191,7 +191,7 @@ export default function Compromissos({ activeUserId, debts, accounts, transactio
     }
 
     const baseDebt: Debt = {
-      id: isEditing && newDebt.id ? newDebt.id : Math.random().toString(36).substr(2, 9),
+      id: isEditing && newDebt.id ? newDebt.id : crypto.randomUUID(),
       user_id: activeUserId,
       description: newDebt.description,
       total_amount: newDebt.valueInput,
@@ -212,7 +212,7 @@ export default function Compromissos({ activeUserId, debts, accounts, transactio
           const installmentDate = addMonths(newDebt.due_date || new Date().toISOString().split('T')[0], i - 1);
           generatedDebts.push({
             ...baseDebt,
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID(),
             description: `${newDebt.description} (${i}/${count})`,
             total_amount: newDebt.valueInput,
             due_date: installmentDate,

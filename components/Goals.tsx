@@ -28,7 +28,7 @@ export default function Goals({ activeUserId, goals, accounts, onAdd, onUpdate, 
     e.preventDefault();
     if (!newGoal.title || newGoal.target_amount <= 0) return;
     const goal: Goal = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       user_id: activeUserId,
       title: newGoal.title,
       target_amount: newGoal.target_amount,

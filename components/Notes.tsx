@@ -43,7 +43,7 @@ export default function Notes({ notes, onAdd, onUpdate, onDelete }: NotesProps) 
     } else {
       onAdd({
         ...currentNote as Note,
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       });

@@ -31,26 +31,26 @@ import { checkLatestVersion } from './services/versionService';
 
 // Default Constants (Fallback)
 const INITIAL_ACCOUNTS: Account[] = [
-  { id: '1', user_id: '', name: 'Operacional', type: 'bank', balance_initial: 0, current_balance: 0, percentage: 60, is_active: true, color: '#4F46E5', created_at: '', updated_at: '' },
-  { id: '2', user_id: '', name: 'Reserva', type: 'investment', balance_initial: 0, current_balance: 0, percentage: 40, is_active: true, color: '#10B981', created_at: '', updated_at: '' },
+  { id: crypto.randomUUID(), user_id: '', name: 'Operacional', type: 'bank', balance_initial: 0, current_balance: 0, percentage: 60, is_active: true, color: '#4F46E5', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: crypto.randomUUID(), user_id: '', name: 'Reserva', type: 'investment', balance_initial: 0, current_balance: 0, percentage: 40, is_active: true, color: '#10B981', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ];
 
 const DEFAULT_CATEGORIES: Category[] = [
   { 
-    id: 'c1', user_id: null, name: 'Moradia', type: 'expense', is_default: true, color: '#EF4444', icon: 'home',
-    created_at: '', updated_at: ''
+    id: crypto.randomUUID(), user_id: null, name: 'Moradia', type: 'expense', is_default: true, color: '#EF4444', icon: 'home',
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   { 
-    id: 'c2', user_id: null, name: 'Alimentação', type: 'expense', is_default: true, color: '#F59E0B', icon: 'utensils',
-    created_at: '', updated_at: ''
+    id: crypto.randomUUID(), user_id: null, name: 'Alimentação', type: 'expense', is_default: true, color: '#F59E0B', icon: 'utensils',
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   { 
-    id: 'c3', user_id: null, name: 'Transporte', type: 'expense', is_default: true, color: '#3B82F6', icon: 'car',
-    created_at: '', updated_at: ''
+    id: crypto.randomUUID(), user_id: null, name: 'Transporte', type: 'expense', is_default: true, color: '#3B82F6', icon: 'car',
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   },
   { 
-    id: 'c6', user_id: null, name: 'Renda', type: 'income', is_default: true, color: '#10B981', icon: 'trending-up',
-    created_at: '', updated_at: ''
+    id: crypto.randomUUID(), user_id: null, name: 'Renda', type: 'income', is_default: true, color: '#10B981', icon: 'trending-up',
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   }
 ];
 
@@ -457,7 +457,7 @@ export default function App() {
           allocated += share;
           return {
             ...(t as Transaction),
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID(),
             account_id: acc.id,
             amount: share,
             description: activePots.length > 1 ? `${t.description} (${acc.name})` : t.description,
@@ -466,7 +466,7 @@ export default function App() {
           };
         });
       } else {
-        newEntries = [{ ...(t as Transaction), id: Math.random().toString(36).substr(2, 9) }];
+        newEntries = [{ ...(t as Transaction), id: crypto.randomUUID() }];
       }
     } else {
       newEntries = Array.isArray(t) ? t : [t as Transaction];
@@ -511,7 +511,7 @@ export default function App() {
     db.saveDebts(activeUser.id, updatedDebts);
 
     const paymentTx: Transaction = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       user_id: activeUser.id,
       description: `Pagamento: ${debt.description}`,
       amount: amount,
@@ -532,7 +532,7 @@ export default function App() {
   const handleGoalDeposit = (amount: number, account_id: string, goalTitle: string) => {
     if (!activeUser) return;
     const tx: Transaction = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       user_id: activeUser.id,
       description: `Aporte: ${goalTitle}`,
       amount: amount,

@@ -29,7 +29,7 @@ export default function Tasks({ tasks, onAdd, onUpdate, onDelete }: TasksProps) 
     if (!newTask.title) return;
     onAdd({
       ...newTask as Task,
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       created_at: new Date().toISOString()
     });
     setShowAddModal(false);

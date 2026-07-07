@@ -71,15 +71,15 @@ const saveLocalData = (userId: string, data: Partial<FinancialData>) => {
 };
 
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'c1', user_id: null, name: 'Moradia', type: 'expense', is_default: true, color: '#EF4444', icon: 'home', created_at: '', updated_at: '' },
-  { id: 'c2', user_id: null, name: 'Alimentação', type: 'expense', is_default: true, color: '#F59E0B', icon: 'utensils', created_at: '', updated_at: '' },
-  { id: 'c3', user_id: null, name: 'Transporte', type: 'expense', is_default: true, color: '#3B82F6', icon: 'car', created_at: '', updated_at: '' },
-  { id: 'c6', user_id: null, name: 'Renda', type: 'income', is_default: true, color: '#10B981', icon: 'trending-up', created_at: '', updated_at: '' }
+  { id: crypto.randomUUID(), user_id: null, name: 'Moradia', type: 'expense', is_default: true, color: '#EF4444', icon: 'home', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: crypto.randomUUID(), user_id: null, name: 'Alimentação', type: 'expense', is_default: true, color: '#F59E0B', icon: 'utensils', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: crypto.randomUUID(), user_id: null, name: 'Transporte', type: 'expense', is_default: true, color: '#3B82F6', icon: 'car', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: crypto.randomUUID(), user_id: null, name: 'Renda', type: 'income', is_default: true, color: '#10B981', icon: 'trending-up', created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
 ];
 
 const INITIAL_ACCOUNTS: Account[] = [
-  { id: '1', user_id: '', name: 'Operacional', type: 'bank', balance_initial: 0, current_balance: 0, percentage: 60, is_active: true, color: '#4F46E5', created_at: '', updated_at: '' },
-  { id: '2', user_id: '', name: 'Reserva', type: 'investment', balance_initial: 0, current_balance: 0, percentage: 40, is_active: true, color: '#10B981', created_at: '', updated_at: '' },
+  { id: crypto.randomUUID(), user_id: '', name: 'Operacional', type: 'bank', balance_initial: 0, current_balance: 0, percentage: 60, is_active: true, color: '#4F46E5', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: crypto.randomUUID(), user_id: '', name: 'Reserva', type: 'investment', balance_initial: 0, current_balance: 0, percentage: 40, is_active: true, color: '#10B981', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ];
 
 export const db = {

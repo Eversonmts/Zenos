@@ -141,7 +141,7 @@ export default function Transactions({
 
     if (isAddingNewCategory && newCategoryName.trim()) {
       const newCat: Category = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         user_id: activeUserId,
         name: newCategoryName,
         type: currentTx.type as TransactionType,
@@ -157,7 +157,7 @@ export default function Transactions({
 
     if (isAddingNewSubcategory && newSubcategoryName.trim() && finalCategoryId) {
       const newSub: Subcategory = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         user_id: activeUserId,
         category_id: finalCategoryId,
         name: newSubcategoryName,
@@ -182,7 +182,7 @@ export default function Transactions({
       user_id: activeUserId,
       category_id: finalCategoryId,
       subcategory_id: finalSubcategoryId || null,
-      id: modalType === 'add' ? Math.random().toString(36).substr(2, 9) : (currentTx as Transaction).id,
+      id: modalType === 'add' ? crypto.randomUUID() : (currentTx as Transaction).id,
       created_at: (currentTx as any).created_at || new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

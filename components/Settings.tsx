@@ -82,7 +82,7 @@ export default function Settings({
   const handleAddCategory = () => {
     if (!newCatName.trim()) return;
     const newCat: Category = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       user_id: profile.id,
       name: newCatName,
       type: newCatType,
@@ -108,7 +108,7 @@ export default function Settings({
   const handleAddSubcategory = (categoryId: string) => {
     if (!newSubName.trim()) return;
     const newSub: Subcategory = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       user_id: profile.id,
       category_id: categoryId,
       name: newSubName.trim(),

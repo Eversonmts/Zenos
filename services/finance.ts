@@ -49,7 +49,7 @@ export const financeService = {
       if (share <= 0) return;
 
       const tx: Transaction = {
-        id: Math.random().toString(36).substr(2, 9),
+        id: crypto.randomUUID(),
         user_id: userId,
         account_id: account.id,
         category_id: transactionData.category_id || '',
