@@ -19,6 +19,7 @@ import BottomNav from './components/BottomNav';
 import Tasks from './components/Tasks';
 import Notes from './components/Notes';
 import Journal from './components/Journal';
+import CalendarView from './components/Calendar';
 import Budgets from './components/Budgets';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import AIAdvisor from './components/AIAdvisor';
@@ -1053,6 +1054,13 @@ export default function App() {
                 entries={journalEntries}
                 onAdd={(e) => updateAndSave((prev: JournalEntry[]) => [...prev, e], setJournalEntries, db.saveJournal)}
                 onDelete={(id) => updateAndSave((prev: JournalEntry[]) => prev.filter(e => e.id !== id), setJournalEntries, db.saveJournal)}
+              />
+            )}
+            {view === 'calendar' && (
+              <CalendarView 
+                events={events}
+                onAdd={(e) => updateAndSave((prev: CalendarEvent[]) => [...prev, e], setEvents, db.saveCalendar)}
+                onDelete={(id) => updateAndSave((prev: CalendarEvent[]) => prev.filter(e => e.id !== id), setEvents, db.saveCalendar)}
               />
             )}
             {view === 'analytics' && (
