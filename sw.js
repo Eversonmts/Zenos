@@ -1,5 +1,5 @@
 
-const CACHE_NAME = 'zenos-v2';
+const CACHE_NAME = 'zenos-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
