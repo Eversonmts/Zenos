@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Category, Profile } from '../types';
-import { Settings as SettingsIcon, Plus, Trash2, Edit2, Check, X, Tag, Moon, Sun, Share2, CreditCard, Crown, Loader2, Clock, Database, Shield, Lock, Fingerprint, Cpu, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles } from 'lucide-react';
+import { Category, Profile, Subcategory } from '../types';
+import { Settings as SettingsIcon, Plus, Trash2, Edit2, Check, X, Tag, Moon, Sun, Share2, CreditCard, Crown, Loader2, Clock, Database, Shield, Lock, Fingerprint, Cpu, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 import { formatDisplayDate } from '../lib/utils';
 import { db } from '../services/db';
 import { testSupabaseConnection } from '../services/supabase';
@@ -10,6 +10,8 @@ import { CURRENT_VERSION, checkLatestVersion, applyAndReloadUpdate, publishNewVe
 interface SettingsProps {
   categories: Category[];
   onUpdateCategories: (cats: Category[]) => void;
+  subcategories: Subcategory[];
+  onUpdateSubcategories: (subs: Subcategory[]) => void;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
   currentTheme: 'dark' | 'light';
   toggleTheme: () => void;
@@ -21,6 +23,8 @@ interface SettingsProps {
 export default function Settings({ 
   categories, 
   onUpdateCategories, 
+  subcategories,
+  onUpdateSubcategories,
   showToast, 
   currentTheme, 
   toggleTheme,
@@ -33,6 +37,7 @@ export default function Settings({
   const [newCatName, setNewCatName] = useState('');
   const [newCatType, setNewCatType] = useState<'income' | 'expense'>('expense');
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [expandedCatId, setExpandedCatId] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState('');
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
 
@@ -95,8 +100,28 @@ export default function Settings({
   const handleDeleteCategory = (id: string) => {
     if (confirm('Tem certeza? Isso pode afetar registros históricos.')) {
       onUpdateCategories(categories.filter(c => c.id !== id));
+      onUpdateSubcategories(subcategories.filter(s => s.category_id !== id));
       showToast('Categoria removida', 'info');
     }
+  };
+
+  const handleAddSubcategory = (categoryId: string) => {
+    if (!newSubName.trim()) return;
+    const newSub: Subcategory = {
+      id: Math.random().toString(36).substr(2, 9),
+      user_id: profile.id,
+      category_id: categoryId,
+      name: newSubName.trim(),
+      created_at: new Date().toISOString()
+    };
+    onUpdateSubcategories([...subcategories, newSub]);
+    setNewSubName('');
+    showToast('Subcategoria criada!', 'success');
+  };
+
+  const handleDeleteSubcategory = (id: string) => {
+    onUpdateSubcategories(subcategories.filter(s => s.id !== id));
+    showToast('Subcategoria removida', 'info');
   };
 
   const handleAddSubCategory = (catId: string) => {
@@ -471,20 +496,68 @@ export default function Settings({
 
                 {/* List Categories */}
                 <div className="space-y-4">
-                   {categories.map(cat => (
+                   {categories.map(cat => {
+                     const catSubs = subcategories.filter(s => s.category_id === cat.id);
+                     const isExpanded = expandedCatId === cat.id;
+                     return (
                      <div key={cat.id} className="bg-slate-50 dark:bg-[#111827]/40 rounded-3xl border border-slate-200 dark:border-white/5 overflow-hidden">
                         <div className="p-4 flex items-center justify-between bg-white/50 dark:bg-white/5">
-                           <div className="flex items-center gap-3">
+                           <button
+                             className="flex items-center gap-3 flex-1 text-left"
+                             onClick={() => setExpandedCatId(isExpanded ? null : cat.id)}
+                           >
                               <span className={`w-2 h-2 rounded-full ${cat.type === 'income' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
                               <h4 className="font-bold text-slate-700 dark:text-slate-200">{cat.name}</h4>
                               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-600">{cat.type === 'income' ? 'Receita' : 'Despesa'}</span>
-                           </div>
+                              {catSubs.length > 0 && (
+                                <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-full">{catSubs.length} sub</span>
+                              )}
+                           </button>
                            <div className="flex items-center gap-2">
+                              <button onClick={() => setExpandedCatId(isExpanded ? null : cat.id)} className="p-2 text-slate-600 hover:text-indigo-500">
+                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              </button>
                               <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 text-slate-600 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
                            </div>
                         </div>
+
+                        {isExpanded && (
+                          <div className="p-4 space-y-3 border-t border-slate-200 dark:border-white/5">
+                             <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="Nova subcategoria..."
+                                  className="flex-1 px-4 py-2.5 bg-white dark:bg-[#030712] border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500 text-sm"
+                                  value={newSubName}
+                                  onChange={e => setNewSubName(e.target.value)}
+                                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddSubcategory(cat.id); } }}
+                                />
+                                <button
+                                  onClick={() => handleAddSubcategory(cat.id)}
+                                  className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-500 transition-all"
+                                >
+                                  Adicionar
+                                </button>
+                             </div>
+
+                             {catSubs.length === 0 ? (
+                               <p className="text-xs text-slate-500 dark:text-slate-600 italic px-1">Nenhuma subcategoria ainda.</p>
+                             ) : (
+                               <div className="flex flex-wrap gap-2">
+                                 {catSubs.map(sub => (
+                                   <div key={sub.id} className="flex items-center gap-2 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-full pl-3 pr-1 py-1">
+                                     <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{sub.name}</span>
+                                     <button onClick={() => handleDeleteSubcategory(sub.id)} className="p-1 text-slate-400 hover:text-rose-500 rounded-full hover:bg-rose-500/10">
+                                       <X className="w-3 h-3" />
+                                     </button>
+                                   </div>
+                                 ))}
+                               </div>
+                             )}
+                          </div>
+                        )}
                      </div>
-                   ))}
+                   );})}
                 </div>
               </div>
             )}

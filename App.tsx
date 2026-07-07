@@ -331,14 +331,9 @@ export default function App() {
 
   // --- Processed Data (Derived State) ---
   const { processedAccounts, totalBalance, totalMonthlyIncome, monthExpenses } = useMemo(() => {
-    // Total Income of all time
-    const allTimeIncome = transactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
-
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    
+
     const monthlyIncome = transactions
       .filter(t => t.type === 'income' && t.date_at?.startsWith(currentMonthStr))
       .reduce((sum, t) => sum + t.amount, 0);
@@ -347,22 +342,23 @@ export default function App() {
       .filter(t => t.type === 'expense' && t.date_at?.startsWith(currentMonthStr))
       .reduce((sum, t) => sum + t.amount, 0);
 
+    // IMPORTANT: Pot balances are accumulated strictly from actual transactions already
+    // tagged to that account_id (both incomes and expenses). We intentionally do NOT
+    // recompute "all-time income x current percentage" here - that would retroactively
+    // change historical allocations every time a percentage is edited or a new pot is
+    // created. Percentages only affect how *new* income entries get split going forward.
     const processed = accounts.map(acc => {
-      // Pot Logic: allocated income based on percentage
-      const allocatedIncome = allTimeIncome * ((acc.percentage || 0) / 100);
-      
-      const expenses = transactions
-        .filter(t => t.type === 'expense' && t.account_id === acc.id)
-        .reduce((sum, t) => sum + t.amount, 0);
-      
-      // Incomes tagged directly to an account (manual overrides/adjustments)
-      const directIncomes = transactions
+      const incomes = transactions
         .filter(t => t.type === 'income' && t.account_id === acc.id)
         .reduce((sum, t) => sum + t.amount, 0);
 
-      return { 
-        ...acc, 
-        current_balance: acc.balance_initial + allocatedIncome + directIncomes - expenses 
+      const expenses = transactions
+        .filter(t => t.type === 'expense' && t.account_id === acc.id)
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      return {
+        ...acc,
+        current_balance: (acc.balance_initial || 0) + incomes - expenses
       };
     });
 
@@ -443,7 +439,40 @@ export default function App() {
   const handleAddTransaction = async (t: Transaction | Transaction[]) => {
     if(!activeUser) return;
 
-    const newTxs = Array.isArray(t) ? [...t, ...transactions] : [t as Transaction, ...transactions];
+    let newEntries: Transaction[];
+
+    if (!Array.isArray(t) && t.type === 'income' && !t.account_id) {
+      // Auto-rateio: divide a receita entre os potes ativos usando o percentual
+      // vigente NESTE momento. O valor de cada parcela é gravado de forma fixa -
+      // mudar o percentual depois (ou criar um novo pote) nunca altera este lançamento.
+      const activePots = accounts.filter(a => a.is_active && (a.percentage || 0) > 0);
+      const totalPct = activePots.reduce((s, a) => s + (a.percentage || 0), 0);
+
+      if (activePots.length > 0 && totalPct > 0) {
+        let allocated = 0;
+        newEntries = activePots.map((acc, idx) => {
+          const isLast = idx === activePots.length - 1;
+          // Garante que a soma das parcelas bate exatamente com o valor total (evita erro de arredondamento)
+          const share = isLast ? (t.amount - allocated) : Math.round((t.amount * ((acc.percentage || 0) / totalPct)) * 100) / 100;
+          allocated += share;
+          return {
+            ...(t as Transaction),
+            id: Math.random().toString(36).substr(2, 9),
+            account_id: acc.id,
+            amount: share,
+            description: activePots.length > 1 ? `${t.description} (${acc.name})` : t.description,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+        });
+      } else {
+        newEntries = [{ ...(t as Transaction), id: Math.random().toString(36).substr(2, 9) }];
+      }
+    } else {
+      newEntries = Array.isArray(t) ? t : [t as Transaction];
+    }
+
+    const newTxs = [...newEntries, ...transactions];
     setTransactions(newTxs);
     db.saveTransactions(activeUser.id, newTxs);
     const label = Array.isArray(t) ? 'Lançamentos registrados!' : `${(t as Transaction).type === 'income' ? 'Entrada' : 'Despesa'} registrada!`;
@@ -453,8 +482,13 @@ export default function App() {
 
   const handleUpdateDebts = (updatedDebts: Debt[]) => {
       if(!activeUser) return;
-      setDebts(updatedDebts);
-      db.saveDebts(activeUser.id, updatedDebts);
+      setDebts(prev => {
+        const map = new Map(prev.map(d => [d.id, d]));
+        updatedDebts.forEach(d => map.set(d.id, d));
+        const merged = Array.from(map.values());
+        db.saveDebts(activeUser.id, merged).catch(err => console.error("Failed to save debts:", err));
+        return merged;
+      });
   };
 
   const handleDeleteDebt = (debtId: string) => {
@@ -1050,6 +1084,8 @@ export default function App() {
               <Settings 
                 categories={categories} 
                 onUpdateCategories={(cats) => updateAndSave(cats, setCategories, db.saveCategories)}
+                subcategories={subcategories}
+                onUpdateSubcategories={(subs) => updateAndSave(subs, setSubcategories, db.saveSubcategories)}
                 showToast={showToast} 
                 currentTheme={theme}
                 toggleTheme={toggleTheme}

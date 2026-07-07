@@ -16,8 +16,34 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
   const [showModal, setShowModal] = useState<'add' | 'edit' | null>(null);
   const [currentAccount, setCurrentAccount] = useState<Partial<Account>>({ name: '', percentage: 0, type: 'bank' });
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  // Rascunho de redistribuição: percentuais editáveis dos OUTROS potes, usados quando
+  // a soma ultrapassa 100% ao criar/editar um pote.
+  const [redistribution, setRedistribution] = useState<Record<string, number>>({});
 
   const totalPercentage = accounts.reduce((acc, p) => acc + (p.percentage || 0), 0);
+
+  const otherAccounts = useMemo(() => {
+    return showModal === 'edit' ? accounts.filter(p => p.id !== currentAccount.id) : accounts;
+  }, [accounts, showModal, currentAccount.id]);
+
+  const redistributedTotal = useMemo(() => {
+    const othersSum = otherAccounts.reduce((acc, p) => acc + (redistribution[p.id] ?? p.percentage ?? 0), 0);
+    return othersSum + (currentAccount.percentage || 0);
+  }, [otherAccounts, redistribution, currentAccount.percentage]);
+
+  const needsRedistribution = redistributedTotal > 100;
+
+  const openAddModal = () => {
+    setCurrentAccount({ name: '', percentage: 0, type: 'bank' });
+    setRedistribution({});
+    setShowModal('add');
+  };
+
+  const openEditModal = (account: Account) => {
+    setCurrentAccount(account);
+    setRedistribution({});
+    setShowModal('edit');
+  };
 
   // Calcula o saldo do período se datas forem selecionadas
   const periodBalances = useMemo(() => {
@@ -51,13 +77,21 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const otherAccounts = showModal === 'edit' ? accounts.filter(p => p.id !== currentAccount.id) : accounts;
-    const currentTotal = otherAccounts.reduce((acc, p) => acc + (p.percentage || 0), 0);
-    
-    if (currentTotal + (currentAccount.percentage || 0) > 100) { 
-      alert("ERRO: A soma total das porcentagens não pode exceder 100%!"); 
-      return; 
+
+    if (redistributedTotal > 100) {
+      alert("A soma total das porcentagens ainda ultrapassa 100%. Ajuste os valores antes de confirmar.");
+      return;
     }
+
+    // Aplica as mudanças de percentual dos OUTROS potes (se o usuário redistribuiu),
+    // sem tocar no saldo/current_balance de nenhum deles - isso é só o rateio de
+    // ENTRADAS FUTURAS. O que já foi alocado no passado permanece intacto.
+    const accountsWithRedistribution = accounts.map(acc => {
+      if (acc.id in redistribution && redistribution[acc.id] !== acc.percentage) {
+        return { ...acc, percentage: redistribution[acc.id], updated_at: new Date().toISOString() };
+      }
+      return acc;
+    });
 
     if (showModal === 'add') {
       const account: Account = { 
@@ -73,11 +107,12 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
-      onUpdate([...accounts, account]);
+      onUpdate([...accountsWithRedistribution, account]);
     } else {
-      onUpdate(accounts.map(p => p.id === currentAccount.id ? { ...p, ...currentAccount } as Account : p));
+      onUpdate(accountsWithRedistribution.map(p => p.id === currentAccount.id ? { ...p, ...currentAccount } as Account : p));
     }
     setShowModal(null);
+    setRedistribution({});
   };
 
   return (
@@ -128,7 +163,7 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
         </div>
 
         <button 
-          onClick={() => { setCurrentAccount({ name: '', percentage: 0, type: 'bank' }); setShowModal('add'); }}
+          onClick={openAddModal}
           className="w-full xl:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-600/20"
         >
           <Plus className="w-5 h-5" /> Adicionar Pote
@@ -144,7 +179,7 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
           return (
             <div key={account.id} className="bg-white dark:bg-[#111827]/40 p-6 rounded-[2rem] border border-slate-200 dark:border-white/5 group relative overflow-hidden transition-all hover:border-indigo-500/30 shadow-sm dark:shadow-none">
               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                <button onClick={() => { setCurrentAccount(account); setShowModal('edit'); }} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Edit2 className="w-4 h-4" /></button>
+                <button onClick={() => openEditModal(account)} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Edit2 className="w-4 h-4" /></button>
                 <button onClick={() => { if(confirm(`Excluir ${account.name}? As transações vinculadas perderão a referência de conta.`)) onUpdate(accounts.filter(p => p.id !== account.id)) }} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Trash2 className="w-4 h-4" /></button>
               </div>
 
@@ -171,10 +206,10 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
       {/* Modal de Configuração de Pote */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/95 backdrop-blur-md">
-          <div className="bg-white dark:bg-[#1e293b] rounded-[2.5rem] w-full max-w-sm p-10 border border-slate-200 dark:border-white/10 shadow-2xl">
+          <div className="bg-white dark:bg-[#1e293b] rounded-[2.5rem] w-full max-w-md p-10 border border-slate-200 dark:border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-xl font-black text-[#212529] dark:text-white uppercase tracking-tighter">Configurar Pote</h3>
-              <button onClick={() => setShowModal(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"><X className="w-5 h-5 text-[#4e545a] dark:text-slate-700" /></button>
+              <h3 className="text-xl font-black text-[#212529] dark:text-white uppercase tracking-tighter">{showModal === 'add' ? 'Novo Pote' : 'Configurar Pote'}</h3>
+              <button onClick={() => { setShowModal(null); setRedistribution({}); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"><X className="w-5 h-5 text-[#4e545a] dark:text-slate-700" /></button>
             </div>
             <form onSubmit={handleSave} className="space-y-6">
               <div className="space-y-2">
@@ -188,9 +223,44 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
                   <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[#4e545a] dark:text-slate-700 font-black">%</span>
                 </div>
               </div>
+
+              {/* Indicador de soma total */}
+              <div className={`flex items-center justify-between px-4 py-3 rounded-2xl border text-xs font-black uppercase tracking-widest ${
+                redistributedTotal > 100 ? 'bg-rose-500/10 border-rose-500/30 text-rose-500' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+              }`}>
+                <span>Soma total do rateio</span>
+                <span>{redistributedTotal}% / 100%</span>
+              </div>
+
+              {/* Redistribuição: aparece quando a soma ultrapassa 100% */}
+              {needsRedistribution && otherAccounts.length > 0 && (
+                <div className="space-y-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
+                  <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+                    Passou de 100% — reduza o rateio de algum pote existente:
+                  </p>
+                  {otherAccounts.map(acc => (
+                    <div key={acc.id} className="flex items-center gap-3">
+                      <span className="flex-1 text-xs font-bold text-[#212529] dark:text-slate-200 truncate">{acc.name}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        className="w-20 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-center text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                        value={redistribution[acc.id] ?? acc.percentage ?? 0}
+                        onChange={e => setRedistribution({ ...redistribution, [acc.id]: parseInt(e.target.value) || 0 })}
+                      />
+                      <span className="text-xs text-[#4e545a] dark:text-slate-600 font-black">%</span>
+                    </div>
+                  ))}
+                  <p className="text-[9px] text-[#4e545a] dark:text-slate-600 leading-relaxed pt-1">
+                    Isso só muda como as <strong>próximas</strong> entradas serão divididas. O saldo que já está em cada pote continua exatamente igual.
+                  </p>
+                </div>
+              )}
+
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setShowModal(null)} className="flex-1 py-4 text-[#4e545a] dark:text-slate-700 font-black uppercase text-xs tracking-widest hover:text-[#212529] dark:hover:text-white transition-colors">Cancelar</button>
-                <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-indigo-500 shadow-xl transition-all">
+                <button type="button" onClick={() => { setShowModal(null); setRedistribution({}); }} className="flex-1 py-4 text-[#4e545a] dark:text-slate-700 font-black uppercase text-xs tracking-widest hover:text-[#212529] dark:hover:text-white transition-colors">Cancelar</button>
+                <button type="submit" disabled={redistributedTotal > 100} className="flex-1 py-4 bg-indigo-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-indigo-500 shadow-xl transition-all">
                   Confirmar
                 </button>
               </div>

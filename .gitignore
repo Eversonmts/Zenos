@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables (never commit real project secrets/keys)
+.env
+.env.local
+.env.*.local
