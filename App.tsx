@@ -3,9 +3,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, Receipt, Target, BrainCircuit, Menu, X, Archive, 
   AlertCircle, Plus, Settings as SettingsIcon, Camera, Mic, Loader2, StopCircle, LogOut, Shield, Wallet, Lock, Crown, Check, CreditCard as CreditCardIcon, ShoppingBag, Activity, ArrowUpCircle, ArrowDownCircle, Eye, Fingerprint,
-  BarChart2, CheckSquare, StickyNote, Book, Calendar as CalendarIcon, MessageSquare, PieChart
+  BarChart2, CheckSquare, StickyNote, Book, Calendar as CalendarIcon, MessageSquare, PieChart, Tag
 } from 'lucide-react';
-import { AppView, Transaction, Account, Debt, Goal, Category, Subcategory, Profile, Plan, Settings as SettingsType, FinancialData, Subscription, Task, Note, JournalEntry, CalendarEvent, Budget } from './types';
+import { AppView, Transaction, Account, Debt, Goal, Category, Subcategory, Profile, Plan, Settings as SettingsType, FinancialData, Subscription, Task, Note, JournalEntry, CalendarEvent, Budget, TransactionAllocation } from './types';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import Compromissos from './components/Compromissos';
@@ -95,6 +95,7 @@ export default function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactionAllocations, setTransactionAllocations] = useState<TransactionAllocation[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -201,6 +202,14 @@ export default function App() {
 
   // Pull to refresh logic
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sempre que troca de tela (ou de aba dentro de Ajustes), volta o scroll pro topo -
+  // sem isso, a tela nova podia renderizar "embaixo" da rolagem anterior.
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' });
+    }
+  }, [view, settingsTab]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
 
@@ -282,10 +291,23 @@ export default function App() {
         const data = await db.getFinancialData(userId);
         
         setTransactions(data.transactions || []);
-        setAccounts(data.accounts.length ? data.accounts : INITIAL_ACCOUNTS);
+        setTransactionAllocations(data.transaction_allocations || []);
+
+        const safeAccounts = data.accounts.length
+          ? data.accounts
+          : await db.ensureDefaultAccounts(userId, data.accounts || []);
+        setAccounts(safeAccounts.length ? safeAccounts : INITIAL_ACCOUNTS);
+
         setDebts(data.debts || []);
         setGoals(data.goals || []);
-        setCategories(data.categories.length ? data.categories : DEFAULT_CATEGORIES);
+
+        // Garante categorias reais no banco (nunca usa fallback fake em memória,
+        // que causaria erro de chave estrangeira ao lançar uma transação)
+        const safeCategories = data.categories.length
+          ? data.categories
+          : await db.ensureDefaultCategories(userId, data.categories || []);
+        setCategories(safeCategories.length ? safeCategories : DEFAULT_CATEGORIES);
+
         setSubcategories(data.subcategories || []);
         setSettings(data.settings || []);
         setSubscriptions(data.subscriptions || []);
@@ -343,13 +365,19 @@ export default function App() {
       .filter(t => t.type === 'expense' && t.date_at?.startsWith(currentMonthStr))
       .reduce((sum, t) => sum + t.amount, 0);
 
-    // IMPORTANT: Pot balances are accumulated strictly from actual transactions already
-    // tagged to that account_id (both incomes and expenses). We intentionally do NOT
-    // recompute "all-time income x current percentage" here - that would retroactively
-    // change historical allocations every time a percentage is edited or a new pot is
-    // created. Percentages only affect how *new* income entries get split going forward.
+    // IMPORTANT: Pot balances are accumulated strictly from actual data already
+    // persisted (income via transaction_allocations, expenses via transactions
+    // directly tagged to that account_id). We intentionally do NOT recompute
+    // "all-time income x current percentage" here - that would retroactively
+    // change historical allocations every time a percentage is edited or a new
+    // pot is created. Percentages only affect how *new* income entries split.
     const processed = accounts.map(acc => {
-      const incomes = transactions
+      const incomes = transactionAllocations
+        .filter(a => a.account_id === acc.id)
+        .reduce((sum, a) => sum + a.amount, 0);
+
+      // Receita manual, lançada direto numa conta específica (sem passar pelo rateio automático)
+      const directIncomes = transactions
         .filter(t => t.type === 'income' && t.account_id === acc.id)
         .reduce((sum, t) => sum + t.amount, 0);
 
@@ -359,7 +387,7 @@ export default function App() {
 
       return {
         ...acc,
-        current_balance: (acc.balance_initial || 0) + incomes - expenses
+        current_balance: (acc.balance_initial || 0) + incomes + directIncomes - expenses
       };
     });
 
@@ -371,7 +399,7 @@ export default function App() {
       totalMonthlyIncome: monthlyIncome,
       monthExpenses: monthlyExpenses
     };
-  }, [transactions, accounts]);
+  }, [transactions, accounts, transactionAllocations]);
 
   const financialData = useMemo(() => ({ 
     profile: activeUser,
@@ -391,6 +419,7 @@ export default function App() {
     { id: 'accounts' as any, label: 'Potes', icon: Archive, section: 'FINANCEIRO' },
     { id: 'goals', label: 'Metas', icon: Target, section: 'FINANCEIRO' },
     { id: 'compromissos', label: 'Dívidas', icon: AlertCircle, section: 'FINANCEIRO' },
+    { id: 'categories' as any, label: 'Categorias', icon: Tag, section: 'FINANCEIRO' },
     { id: 'tasks', label: 'Tarefas', icon: CheckSquare, section: 'PRODUTIVIDADE' },
     { id: 'notes', label: 'Notas', icon: StickyNote, section: 'PRODUTIVIDADE' },
     { id: 'journal', label: 'Diário', icon: Book, section: 'PRODUTIVIDADE' },
@@ -441,33 +470,38 @@ export default function App() {
     if(!activeUser) return;
 
     let newEntries: Transaction[];
+    let newAllocations: TransactionAllocation[] = [];
 
     if (!Array.isArray(t) && t.type === 'income' && !t.account_id) {
-      // Auto-rateio: divide a receita entre os potes ativos usando o percentual
-      // vigente NESTE momento. O valor de cada parcela é gravado de forma fixa -
-      // mudar o percentual depois (ou criar um novo pote) nunca altera este lançamento.
+      // Auto-rateio: a transação em Movimentações fica ÚNICA. O rateio entre
+      // potes (percentual vigente agora) é gravado separadamente, e nunca muda
+      // o que já foi lançado mesmo que os percentuais mudem depois.
       const activePots = accounts.filter(a => a.is_active && (a.percentage || 0) > 0);
       const totalPct = activePots.reduce((s, a) => s + (a.percentage || 0), 0);
 
+      const singleTx: Transaction = {
+        ...(t as Transaction),
+        id: crypto.randomUUID(),
+        account_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      newEntries = [singleTx];
+
       if (activePots.length > 0 && totalPct > 0) {
         let allocated = 0;
-        newEntries = activePots.map((acc, idx) => {
+        newAllocations = activePots.map((acc, idx) => {
           const isLast = idx === activePots.length - 1;
-          // Garante que a soma das parcelas bate exatamente com o valor total (evita erro de arredondamento)
-          const share = isLast ? (t.amount - allocated) : Math.round((t.amount * ((acc.percentage || 0) / totalPct)) * 100) / 100;
+          const share = isLast ? (singleTx.amount - allocated) : Math.round((singleTx.amount * ((acc.percentage || 0) / totalPct)) * 100) / 100;
           allocated += share;
           return {
-            ...(t as Transaction),
             id: crypto.randomUUID(),
+            transaction_id: singleTx.id,
             account_id: acc.id,
             amount: share,
-            description: activePots.length > 1 ? `${t.description} (${acc.name})` : t.description,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            created_at: new Date().toISOString()
           };
         });
-      } else {
-        newEntries = [{ ...(t as Transaction), id: crypto.randomUUID() }];
       }
     } else {
       newEntries = Array.isArray(t) ? t : [t as Transaction];
@@ -475,7 +509,23 @@ export default function App() {
 
     const newTxs = [...newEntries, ...transactions];
     setTransactions(newTxs);
-    db.saveTransactions(activeUser.id, newTxs);
+
+    try {
+      // As alocações têm uma chave estrangeira apontando pra transação - por isso
+      // é essencial esperar a transação terminar de salvar antes de gravar o rateio.
+      await db.saveTransactions(activeUser.id, newTxs);
+
+      if (newAllocations.length > 0) {
+        const updatedAllocations = [...transactionAllocations, ...newAllocations];
+        setTransactionAllocations(updatedAllocations);
+        await db.saveAllocations(activeUser.id, updatedAllocations);
+      }
+    } catch (err) {
+      console.error('Failed to save transaction:', err);
+      showToast('Erro ao salvar o lançamento. Tente novamente.', 'error');
+      return;
+    }
+
     const label = Array.isArray(t) ? 'Lançamentos registrados!' : `${(t as Transaction).type === 'income' ? 'Entrada' : 'Despesa'} registrada!`;
     showToast(label);
     setPreFilledTx(null);
@@ -906,7 +956,11 @@ export default function App() {
                 <h4 className="px-4 text-[8px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-[0.3em] lg:hidden xl:block">{sectionName}</h4>
                 <div className="space-y-1">
                   {items.map((item) => (
-                    <button key={item.id} onClick={() => { setView(item.id); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all ${view === item.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/10' : 'text-[#4e545a] dark:text-slate-600 hover:text-[#212529] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'}`}>
+                    <button key={item.id} onClick={() => {
+                        if (item.id === 'categories') { setView('settings'); setSettingsTab('categories'); }
+                        else setView(item.id);
+                        setIsSidebarOpen(false);
+                      }} className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all ${view === item.id || (item.id === 'categories' && view === 'settings' && settingsTab === 'categories') ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/10' : 'text-[#4e545a] dark:text-slate-600 hover:text-[#212529] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'}`}>
                       <item.icon className={`w-5 h-5 flex-shrink-0 ${view === item.id ? 'text-white' : ''}`} />
                       <span className="font-bold text-sm lg:hidden xl:block flex items-center gap-1.5">
                         {item.label}
@@ -1017,6 +1071,8 @@ export default function App() {
                 activeUserId={activeUser.id}
                 accounts={processedAccounts} 
                 transactions={transactions}
+                allocations={transactionAllocations}
+                categories={categories}
                 onUpdate={(newAccounts: Account[]) => {
                   updateAndSave(() => newAccounts, setAccounts, db.saveAccounts);
                 }} 
@@ -1094,6 +1150,8 @@ export default function App() {
                 onUpdateCategories={(cats) => updateAndSave(cats, setCategories, db.saveCategories)}
                 subcategories={subcategories}
                 onUpdateSubcategories={(subs) => updateAndSave(subs, setSubcategories, db.saveSubcategories)}
+                settings={settings}
+                onUpdateSettings={(s) => updateAndSave(() => s, setSettings, db.saveSettings)}
                 showToast={showToast} 
                 currentTheme={theme}
                 toggleTheme={toggleTheme}

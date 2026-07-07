@@ -76,7 +76,7 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
     try {
       setIsListening(true);
       setLiveTranscription('');
-      const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+      const apiKey = localStorage.getItem('zenos_gemini_api_key') || process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
       const ai = new GoogleGenAI({ apiKey });
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });

@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { testDb } from './testDb';
 import {
   Profile, Transaction, Account, Debt, Goal, Category,
-  FinancialData, Settings, AdminLog, Plan, Subscription
+  FinancialData, Settings, AdminLog, Plan, Subscription, TransactionAllocation
 } from '../types';
 
 const isTestUser = (id: string) => id?.startsWith('test_') || false;
@@ -47,7 +47,7 @@ const saveLocalData = (userId: string, data: Partial<FinancialData>) => {
       plans: [],
       subscriptions: [],
       categories: [],
-      subcategories: [],
+      subcategories: [], transaction_allocations: [],
       accounts: [],
       transactions: [],
       goals: [],
@@ -226,7 +226,7 @@ export const db = {
 
       return {
         profiles: [], plans: [], subscriptions: [], categories: DEFAULT_CATEGORIES,
-        subcategories: [],
+        subcategories: [], transaction_allocations: [],
         accounts: INITIAL_ACCOUNTS, transactions: [], goals: [], debts: [],
         tasks: [], notes: [], journal: [], calendar: [], budgets: [],
         settings: []
@@ -251,7 +251,7 @@ export const db = {
       setSyncStatus('error');
       return {
         profiles: [], plans: [], subscriptions: [], categories: DEFAULT_CATEGORIES,
-        subcategories: [],
+        subcategories: [], transaction_allocations: [],
         accounts: INITIAL_ACCOUNTS, transactions: [], goals: [], debts: [],
         tasks: [], notes: [], journal: [], calendar: [], budgets: [],
         settings: []
@@ -310,6 +310,54 @@ export const db = {
     } catch (error) {
       console.error("Global sync error", error);
       setSyncStatus('error');
+    }
+  },
+
+  // Garante que o usuário tenha categorias reais no banco. Se não tiver nenhuma
+  // (conta nova, ou conta antiga criada por fora do fluxo normal de cadastro),
+  // cria as categorias padrão de verdade no Supabase - nunca usa objetos "fake"
+  // só de memória, que quebrariam a chave estrangeira ao lançar uma transação.
+  ensureDefaultCategories: async (userId: string, existingCategories: Category[]): Promise<Category[]> => {
+    const hasOwnCategories = existingCategories.some(c => c.user_id === userId);
+    if (hasOwnCategories || isTestUser(userId)) return existingCategories;
+
+    const defaults = [
+      { user_id: userId, name: 'Alimentação', type: 'expense', color: '#FF5252', icon: 'Utensils', is_default: true },
+      { user_id: userId, name: 'Combustível', type: 'expense', color: '#FFD740', icon: 'Fuel', is_default: true },
+      { user_id: userId, name: 'Moradia', type: 'expense', color: '#448AFF', icon: 'Home', is_default: true },
+      { user_id: userId, name: 'Lazer', type: 'expense', color: '#E040FB', icon: 'Gamepad2', is_default: true },
+      { user_id: userId, name: 'Salário', type: 'income', color: '#69F0AE', icon: 'Banknote', is_default: true }
+    ];
+
+    try {
+      const { data, error } = await supabase.from('categories').insert(defaults).select('*');
+      if (error) throw error;
+      return [...existingCategories, ...(data as Category[])];
+    } catch (error) {
+      console.error('Failed to seed default categories:', error);
+      return existingCategories;
+    }
+  },
+
+  // Mesma lógica de auto-cura para os Potes (accounts): nunca deixa a tela
+  // funcionar só com objetos fictícios em memória - sempre garante que existam
+  // linhas reais no banco antes de permitir que o usuário lance algo contra elas.
+  ensureDefaultAccounts: async (userId: string, existingAccounts: Account[]): Promise<Account[]> => {
+    const hasOwnAccounts = existingAccounts.some(a => a.user_id === userId);
+    if (hasOwnAccounts || isTestUser(userId)) return existingAccounts;
+
+    const defaults = [
+      { user_id: userId, name: 'Operacional', type: 'bank', balance_initial: 0, current_balance: 0, percentage: 60, is_active: true, color: '#4F46E5' },
+      { user_id: userId, name: 'Reserva', type: 'investment', balance_initial: 0, current_balance: 0, percentage: 40, is_active: true, color: '#10B981' }
+    ];
+
+    try {
+      const { data, error } = await supabase.from('accounts').insert(defaults).select('*');
+      if (error) throw error;
+      return [...existingAccounts, ...(data as Account[])];
+    } catch (error) {
+      console.error('Failed to seed default accounts:', error);
+      return existingAccounts;
     }
   },
 
@@ -399,6 +447,15 @@ export const db = {
     if (error) { console.error("Failed to save calendar events:", error); throw error; }
   },
 
+  // Salva o rateio de uma receita entre potes (não duplica a transação, só o detalhamento)
+  saveAllocations: async (userId: string, allocations: TransactionAllocation[]) => {
+    saveLocalData(userId, { transaction_allocations: allocations });
+    if (isTestUser(userId)) return;
+    if (!allocations.length) return;
+    const { error } = await supabase.from('transaction_allocations').upsert(allocations);
+    if (error) { console.error("Failed to save transaction allocations:", error); throw error; }
+  },
+
   // --- SYSTEM ADMIN ---
   admin: {
     logs: {
@@ -441,6 +498,15 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
   // System-wide default categories (user_id IS NULL) are shared by everyone.
   const { data: systemCategories } = await supabase.from('categories').select('*').is('user_id', null);
 
+  // Alocações não têm user_id direto (ligam por transaction_id) - busca pelas
+  // transações do usuário que acabamos de carregar.
+  const txIds = (byTable.transactions as any[]).map(t => t.id);
+  let allocations: any[] = [];
+  if (txIds.length > 0) {
+    const { data: allocData } = await supabase.from('transaction_allocations').select('*').in('transaction_id', txIds);
+    allocations = allocData || [];
+  }
+
   return {
     profiles: [],
     plans: [],
@@ -449,6 +515,7 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
     subcategories: byTable.subcategories as any[],
     accounts: (byTable.accounts.length ? byTable.accounts : INITIAL_ACCOUNTS) as Account[],
     transactions: byTable.transactions as Transaction[],
+    transaction_allocations: allocations,
     goals: byTable.goals as Goal[],
     debts: byTable.debts as Debt[],
     settings: byTable.settings as Settings[],

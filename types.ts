@@ -111,6 +111,17 @@ export interface Transaction {
   updated_at: string;
 }
 
+// Rateio de uma receita entre potes. A transação em si é única (aparece uma vez
+// em Movimentações); este registro só existe para detalhar quanto foi para cada
+// pote, consultado na tela de "Detalhes" de cada pote.
+export interface TransactionAllocation {
+  id: string;
+  transaction_id: string;
+  account_id: string;
+  amount: number;
+  created_at: string;
+}
+
 export interface Subcategory {
   id: string;
   user_id: string;
@@ -288,6 +299,7 @@ export interface FinancialData {
   subcategories: Subcategory[];
   accounts: Account[];
   transactions: Transaction[];
+  transaction_allocations: TransactionAllocation[];
   goals: Goal[];
   debts: Debt[];
   tasks: Task[];

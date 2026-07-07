@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Category, Profile, Subcategory } from '../types';
-import { Settings as SettingsIcon, Plus, Trash2, Edit2, Check, X, Tag, Moon, Sun, Share2, CreditCard, Crown, Loader2, Clock, Database, Shield, Lock, Fingerprint, Cpu, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Category, Profile, Subcategory, Settings as SettingsType } from '../types';
+import { Settings as SettingsIcon, Plus, Trash2, Edit2, Check, X, Tag, Moon, Sun, Share2, CreditCard, Crown, Loader2, Clock, Database, Shield, Lock, Fingerprint, Cpu, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles, ChevronDown, ChevronUp, KeyRound } from 'lucide-react';
 import { formatDisplayDate } from '../lib/utils';
 import { db } from '../services/db';
 import { testSupabaseConnection } from '../services/supabase';
@@ -12,6 +12,8 @@ interface SettingsProps {
   onUpdateCategories: (cats: Category[]) => void;
   subcategories: Subcategory[];
   onUpdateSubcategories: (subs: Subcategory[]) => void;
+  settings: SettingsType[];
+  onUpdateSettings: (settings: SettingsType[]) => void;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
   currentTheme: 'dark' | 'light';
   toggleTheme: () => void;
@@ -25,6 +27,8 @@ export default function Settings({
   onUpdateCategories, 
   subcategories,
   onUpdateSubcategories,
+  settings,
+  onUpdateSettings,
   showToast, 
   currentTheme, 
   toggleTheme,
@@ -40,6 +44,8 @@ export default function Settings({
   const [expandedCatId, setExpandedCatId] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState('');
   const [newPaymentMethod, setNewPaymentMethod] = useState('');
+  const [geminiKeyInput, setGeminiKeyInput] = useState(() => localStorage.getItem('zenos_gemini_api_key') || '');
+  const [geminiKeySaved, setGeminiKeySaved] = useState(false);
 
   const [pin, setPin] = useState(profile.security_pin || '');
   const [biometry, setBiometry] = useState(profile.biometry_enabled || false);
@@ -62,6 +68,14 @@ export default function Settings({
   const [adminNewVersion, setAdminNewVersion] = useState('');
   const [adminNewNotes, setAdminNewNotes] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
+
+  useEffect(() => {
+    const syncedKey = settings[0]?.meta_json?.gemini_api_key;
+    if (syncedKey && syncedKey !== localStorage.getItem('zenos_gemini_api_key')) {
+      localStorage.setItem('zenos_gemini_api_key', syncedKey);
+      setGeminiKeyInput(syncedKey);
+    }
+  }, [settings]);
 
   useEffect(() => {
     // Verificação automática de atualizações em segundo plano ao abrir as configurações
@@ -167,6 +181,21 @@ export default function Settings({
     showToast('Configurações de segurança salvas!', 'success');
   };
 
+  const handleSaveGeminiKey = () => {
+    const trimmed = geminiKeyInput.trim();
+    localStorage.setItem('zenos_gemini_api_key', trimmed);
+
+    const currentSettings = settings[0];
+    const updated: SettingsType = currentSettings
+      ? { ...currentSettings, meta_json: { ...(currentSettings.meta_json || {}), gemini_api_key: trimmed } }
+      : { id: crypto.randomUUID(), user_id: profile.id, currency: 'BRL', language: 'pt-BR', theme: currentTheme, notifications_enabled: true, meta_json: { gemini_api_key: trimmed }, updated_at: new Date().toISOString() } as SettingsType;
+
+    onUpdateSettings(currentSettings ? settings.map(s => s.id === updated.id ? updated : s) : [...settings, updated]);
+    setGeminiKeySaved(true);
+    showToast('Chave da API Gemini salva!', 'success');
+    setTimeout(() => setGeminiKeySaved(false), 2000);
+  };
+
   const handleSaveProfile = () => {
     onUpdateProfile({
       ...profile,
@@ -255,6 +284,7 @@ export default function Settings({
             </div>
           </button>
 
+          {profile.role === 'admin' && (
           <button 
             onClick={() => setActiveTab('database')}
             className={`w-full flex items-center gap-4 p-4 rounded-3xl transition-all ${activeTab === 'database' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'bg-white dark:bg-[#0a0c14] text-slate-600 hover:bg-slate-50 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5'}`}
@@ -267,6 +297,7 @@ export default function Settings({
               <p className={`text-[9px] font-bold ${activeTab === 'database' ? 'text-indigo-100' : 'text-slate-400'}`}>Status do Supabase</p>
             </div>
           </button>
+          )}
 
           <button 
             onClick={() => setActiveTab('security')}
@@ -281,6 +312,7 @@ export default function Settings({
             </div>
           </button>
 
+          {profile.role === 'admin' && (
           <button 
             onClick={() => setActiveTab('system')}
             className={`relative w-full flex items-center gap-4 p-4 rounded-3xl transition-all ${activeTab === 'system' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'bg-white dark:bg-[#0a0c14] text-slate-600 hover:bg-slate-50 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5'}`}
@@ -298,6 +330,7 @@ export default function Settings({
               <p className={`text-[9px] font-bold ${activeTab === 'system' ? 'text-indigo-100' : 'text-slate-400'}`}>Versão e Atualização</p>
             </div>
           </button>
+          )}
         </div>
 
         {/* Conteúdo Principal */}
@@ -461,6 +494,34 @@ export default function Settings({
                     </div>
                   </div>
                 )}
+
+                {/* Chave de API do Gemini (usada pelo Consultor IA) */}
+                <div className="p-6 bg-slate-50 dark:bg-[#0a0c14] rounded-3xl border border-slate-200 dark:border-white/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl">
+                      <KeyRound className="w-5 h-5 text-indigo-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">Chave da API Gemini</p>
+                      <p className="text-[10px] text-slate-500">Usada pelo Consultor IA. Gere a sua em aistudio.google.com/apikey</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      placeholder="AIzaSy..."
+                      className="flex-1 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
+                      value={geminiKeyInput}
+                      onChange={e => { setGeminiKeyInput(e.target.value); setGeminiKeySaved(false); }}
+                    />
+                    <button
+                      onClick={handleSaveGeminiKey}
+                      className="px-5 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-500 transition-all shrink-0"
+                    >
+                      {geminiKeySaved ? <Check className="w-4 h-4" /> : 'Salvar'}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -656,7 +717,7 @@ export default function Settings({
               </div>
             )}
 
-            {activeTab === 'database' && (
+            {activeTab === 'database' && profile.role === 'admin' && (
               <DatabaseSettings profile={profile} showToast={showToast} />
             )}
 
@@ -726,7 +787,7 @@ export default function Settings({
               </div>
             )}
 
-            {activeTab === 'system' && (
+            {activeTab === 'system' && profile.role === 'admin' && (
               <div className="space-y-8 animate-in fade-in duration-500">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="p-4 bg-blue-50 dark:bg-blue-500/10 rounded-2xl">

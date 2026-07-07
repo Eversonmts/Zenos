@@ -1,19 +1,22 @@
 
 import React, { useState, useMemo } from 'react';
-import { Account, Transaction } from '../types';
-import { Plus, Trash2, Edit2, Archive, X, Save, Settings, Calendar } from 'lucide-react';
+import { Account, Transaction, TransactionAllocation, Category } from '../types';
+import { Plus, Trash2, Edit2, Archive, X, Save, Settings, Calendar, ListTree, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
-import { parseLocalDate, formatCurrency } from '../lib/utils';
+import { parseLocalDate, formatCurrency, formatDisplayDate } from '../lib/utils';
 
 interface PotesProps {
   activeUserId: string;
   accounts: Account[];
   transactions: Transaction[];
+  allocations: TransactionAllocation[];
+  categories: Category[];
   onUpdate: (accounts: Account[]) => void;
 }
 
-export default function Potes({ activeUserId, accounts, transactions, onUpdate }: PotesProps) {
+export default function Potes({ activeUserId, accounts, transactions, allocations, categories, onUpdate }: PotesProps) {
   const [showModal, setShowModal] = useState<'add' | 'edit' | null>(null);
+  const [detailAccount, setDetailAccount] = useState<Account | null>(null);
   const [currentAccount, setCurrentAccount] = useState<Partial<Account>>({ name: '', percentage: 0, type: 'bank' });
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   // Rascunho de redistribuição: percentuais editáveis dos OUTROS potes, usados quando
@@ -74,6 +77,41 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
     }, {} as Record<string, number>);
 
   }, [transactions, accounts, dateRange]);
+
+  // Histórico de movimentações do pote selecionado: junta o rateio de receitas
+  // (via transaction_allocations) com despesas lançadas direto nesse pote.
+  const detailHistory = useMemo(() => {
+    if (!detailAccount) return [];
+
+    const txById = new Map(transactions.map(t => [t.id, t]));
+
+    const fromAllocations = allocations
+      .filter(a => a.account_id === detailAccount.id)
+      .map(a => {
+        const parentTx = txById.get(a.transaction_id);
+        return {
+          id: a.id,
+          date: parentTx?.date_at || a.created_at,
+          description: parentTx?.description || 'Receita',
+          categoryId: parentTx?.category_id || null,
+          amount: a.amount,
+          type: 'income' as const,
+        };
+      });
+
+    const fromDirect = transactions
+      .filter(t => t.account_id === detailAccount.id)
+      .map(t => ({
+        id: t.id,
+        date: t.date_at,
+        description: t.description,
+        categoryId: t.category_id,
+        amount: t.amount,
+        type: t.type,
+      }));
+
+    return [...fromAllocations, ...fromDirect].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }, [detailAccount, allocations, transactions]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +217,7 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
           return (
             <div key={account.id} className="bg-white dark:bg-[#111827]/40 p-6 rounded-[2rem] border border-slate-200 dark:border-white/5 group relative overflow-hidden transition-all hover:border-indigo-500/30 shadow-sm dark:shadow-none">
               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                <button onClick={() => setDetailAccount(account)} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl" title="Detalhes"><ListTree className="w-4 h-4" /></button>
                 <button onClick={() => openEditModal(account)} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Edit2 className="w-4 h-4" /></button>
                 <button onClick={() => { if(confirm(`Excluir ${account.name}? As transações vinculadas perderão a referência de conta.`)) onUpdate(accounts.filter(p => p.id !== account.id)) }} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Trash2 className="w-4 h-4" /></button>
               </div>
@@ -202,6 +241,45 @@ export default function Potes({ activeUserId, accounts, transactions, onUpdate }
           );
         })}
       </div>
+
+      {/* Modal de Detalhes do Pote */}
+      {detailAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/95 backdrop-blur-md">
+          <div className="bg-white dark:bg-[#1e293b] rounded-[2.5rem] w-full max-w-lg p-8 border border-slate-200 dark:border-white/10 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-2">
+              <div>
+                <h3 className="text-xl font-black text-[#212529] dark:text-white uppercase tracking-tighter">{detailAccount.name}</h3>
+                <p className="text-xs text-slate-500 font-bold">{detailAccount.percentage}% do rateio · {formatCurrency(detailAccount.current_balance)}</p>
+              </div>
+              <button onClick={() => setDetailAccount(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"><X className="w-5 h-5 text-[#4e545a] dark:text-slate-700" /></button>
+            </div>
+
+            <div className="mt-6 space-y-2">
+              {detailHistory.length === 0 && (
+                <p className="text-center text-sm text-slate-500 py-10">Nenhuma movimentação registrada neste pote ainda.</p>
+              )}
+              {detailHistory.map(item => {
+                const cat = categories.find(c => c.id === item.categoryId);
+                const isIncome = item.type === 'income';
+                return (
+                  <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl">
+                    <div className="flex items-center gap-3">
+                      {isIncome ? <ArrowUpCircle className="w-5 h-5 text-emerald-500 shrink-0" /> : <ArrowDownCircle className="w-5 h-5 text-rose-500 shrink-0" />}
+                      <div>
+                        <p className="text-sm font-bold text-[#212529] dark:text-white">{item.description}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{cat?.name || 'Sem categoria'} · {formatDisplayDate(item.date)}</p>
+                      </div>
+                    </div>
+                    <span className={`text-sm font-black ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {isIncome ? '+' : '-'} {formatCurrency(item.amount)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Configuração de Pote */}
       {showModal && (

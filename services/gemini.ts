@@ -2,7 +2,17 @@
 import { GoogleGenAI } from "@google/genai";
 import { FinancialData } from "../types";
 
-const getAI = () => new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY });
+// Preferência: chave salva pelo usuário nas Configurações (guardada localmente
+// e sincronizada em settings.meta_json) > variável de ambiente do build.
+const getApiKey = () => {
+  try {
+    const userKey = localStorage.getItem('zenos_gemini_api_key');
+    if (userKey) return userKey;
+  } catch {}
+  return process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+};
+
+const getAI = () => new GoogleGenAI({ apiKey: getApiKey() });
 
 const withTimeout = (promise: Promise<any>, timeoutMs: number = 15000) => {
   return Promise.race([
