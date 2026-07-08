@@ -1130,6 +1130,7 @@ export default function App() {
                 activeUserId={activeUser.id}
                 debts={debts} 
                 accounts={processedAccounts} 
+                cards={cards}
                 transactions={transactions}
                 onAdd={(d) => updateAndSave((prev: Debt[]) => Array.isArray(d) ? [...prev, ...d] : [...prev, d], setDebts, db.saveDebts)}
                 onUpdate={(d) => handleUpdateDebts([d])}

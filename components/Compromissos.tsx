@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Debt, Account, Transaction } from '../types';
+import { Debt, Account, Transaction, CreditCard } from '../types';
 import { Plus, CheckCircle2, AlertTriangle, Calendar, ChevronLeft, ChevronRight, DollarSign, X, Edit2, Clock } from 'lucide-react';
 import { parseLocalDate, formatCurrency, formatDisplayDate, formatDateObject } from '../lib/utils';
 
@@ -18,6 +18,7 @@ interface CompromissosProps {
   activeUserId: string;
   debts: Debt[];
   accounts: Account[];
+  cards?: CreditCard[];
   transactions?: Transaction[];
   onAdd: (d: Debt | Debt[]) => void;
   onUpdate: (d: Debt) => void;
@@ -38,7 +39,7 @@ interface InstallmentItem {
   originalDebtId: string;
 }
 
-export default function Compromissos({ activeUserId, debts, accounts, transactions = [], onAdd, onUpdate, onPay, onEdit, onDelete }: CompromissosProps) {
+export default function Compromissos({ activeUserId, debts, accounts, cards = [], transactions = [], onAdd, onUpdate, onPay, onEdit, onDelete }: CompromissosProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState<Debt | null>(null);
   const [inputType, setInputType] = useState<'total' | 'installment'>('total');
@@ -367,10 +368,18 @@ export default function Compromissos({ activeUserId, debts, accounts, transactio
                       </div>
                       <div>
                         <h4 className="font-bold text-[#212529] dark:text-white text-lg tracking-tight">{item.debt.description}</h4>
-                        <div className="flex gap-2 items-center mt-1">
+                        <div className="flex gap-2 items-center mt-1 flex-wrap">
                             <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${statusConfig.labelColor} bg-white/50 dark:bg-black/20`}>
                                 {statusConfig.label}
                             </span>
+                            {item.debt.card_id && (() => {
+                              const card = cards.find(c => c.id === item.debt.card_id);
+                              return card ? (
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10">
+                                  💳 {card.name}{card.last_4_digits ? ` •${card.last_4_digits}` : ''}
+                                </span>
+                              ) : null;
+                            })()}
                         </div>
                       </div>
                     </div>
