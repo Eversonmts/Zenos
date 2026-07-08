@@ -544,6 +544,7 @@ export default function App() {
 
   const handleDeleteDebt = (debtId: string) => {
     if(!activeUser) return;
+    db.deleteRow('debts', debtId).catch(err => console.error(err));
     const updated = debts.filter(d => d.id !== debtId);
     setDebts(updated);
     db.saveDebts(activeUser.id, updated);
@@ -1045,7 +1046,10 @@ export default function App() {
                 subcategories={subcategories}
                 accounts={processedAccounts}
                 onAdd={handleAddTransaction} 
-                onDelete={(id) => updateAndSave((prev: Transaction[]) => prev.filter(t => t.id !== id), setTransactions, db.saveTransactions)}
+                onDelete={(id) => {
+                  db.deleteRow('transactions', id).catch(err => console.error(err));
+                  updateAndSave((prev: Transaction[]) => prev.filter(t => t.id !== id), setTransactions, db.saveTransactions);
+                }}
                 onEdit={(updated) => updateAndSave((prev: Transaction[]) => prev.map(t => t.id === updated.id ? updated : t), setTransactions, db.saveTransactions)}
                 onAddCategory={handleAddCategory}
                 onAddSubcategory={handleAddSubcategory}
@@ -1087,6 +1091,10 @@ export default function App() {
                 onUpdate={(newGoals) => updateAndSave(newGoals, setGoals, db.saveGoals)}
                 onDeposit={handleGoalDeposit}
                 onEdit={(g) => updateAndSave((prev: Goal[]) => prev.map(i => i.id === g.id ? g : i), setGoals, db.saveGoals)}
+                onDelete={(id) => {
+                  db.deleteRow('goals', id).catch(err => console.error(err));
+                  updateAndSave((prev: Goal[]) => prev.filter(g => g.id !== id), setGoals, db.saveGoals);
+                }}
               />
             )}
             {view === 'tasks' && (
@@ -1094,7 +1102,10 @@ export default function App() {
                 tasks={tasks}
                 onAdd={(t) => updateAndSave((prev: Task[]) => [...prev, t], setTasks, db.saveTasks)}
                 onUpdate={(t) => updateAndSave((prev: Task[]) => prev.map(i => i.id === t.id ? t : i), setTasks, db.saveTasks)}
-                onDelete={(id) => updateAndSave((prev: Task[]) => prev.filter(t => t.id !== id), setTasks, db.saveTasks)}
+                onDelete={(id) => {
+                  db.deleteRow('tasks', id).catch(err => console.error(err));
+                  updateAndSave((prev: Task[]) => prev.filter(t => t.id !== id), setTasks, db.saveTasks);
+                }}
               />
             )}
             {view === 'notes' && (
@@ -1102,21 +1113,30 @@ export default function App() {
                 notes={notes}
                 onAdd={(n) => updateAndSave((prev: Note[]) => [...prev, n], setNotes, db.saveNotes)}
                 onUpdate={(n) => updateAndSave((prev: Note[]) => prev.map(i => i.id === n.id ? n : i), setNotes, db.saveNotes)}
-                onDelete={(id) => updateAndSave((prev: Note[]) => prev.filter(n => n.id !== id), setNotes, db.saveNotes)}
+                onDelete={(id) => {
+                  db.deleteRow('notes', id).catch(err => console.error(err));
+                  updateAndSave((prev: Note[]) => prev.filter(n => n.id !== id), setNotes, db.saveNotes);
+                }}
               />
             )}
             {view === 'journal' && (
               <Journal 
                 entries={journalEntries}
                 onAdd={(e) => updateAndSave((prev: JournalEntry[]) => [...prev, e], setJournalEntries, db.saveJournal)}
-                onDelete={(id) => updateAndSave((prev: JournalEntry[]) => prev.filter(e => e.id !== id), setJournalEntries, db.saveJournal)}
+                onDelete={(id) => {
+                  db.deleteRow('journal', id).catch(err => console.error(err));
+                  updateAndSave((prev: JournalEntry[]) => prev.filter(e => e.id !== id), setJournalEntries, db.saveJournal);
+                }}
               />
             )}
             {view === 'calendar' && (
               <CalendarView 
                 events={events}
                 onAdd={(e) => updateAndSave((prev: CalendarEvent[]) => [...prev, e], setEvents, db.saveCalendar)}
-                onDelete={(id) => updateAndSave((prev: CalendarEvent[]) => prev.filter(e => e.id !== id), setEvents, db.saveCalendar)}
+                onDelete={(id) => {
+                  db.deleteRow('calendar', id).catch(err => console.error(err));
+                  updateAndSave((prev: CalendarEvent[]) => prev.filter(e => e.id !== id), setEvents, db.saveCalendar);
+                }}
               />
             )}
             {view === 'analytics' && (

@@ -113,6 +113,9 @@ export default function Settings({
 
   const handleDeleteCategory = (id: string) => {
     if (confirm('Tem certeza? Isso pode afetar registros históricos.')) {
+      db.deleteRow('categories', id).catch(err => console.error(err));
+      const subsToRemove = subcategories.filter(s => s.category_id === id);
+      subsToRemove.forEach(s => db.deleteRow('subcategories', s.id).catch(err => console.error(err)));
       onUpdateCategories(categories.filter(c => c.id !== id));
       onUpdateSubcategories(subcategories.filter(s => s.category_id !== id));
       showToast('Categoria removida', 'info');
@@ -134,6 +137,7 @@ export default function Settings({
   };
 
   const handleDeleteSubcategory = (id: string) => {
+    db.deleteRow('subcategories', id).catch(err => console.error(err));
     onUpdateSubcategories(subcategories.filter(s => s.id !== id));
     showToast('Subcategoria removida', 'info');
   };

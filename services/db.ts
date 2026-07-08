@@ -361,6 +361,15 @@ export const db = {
     }
   },
 
+  // Exclusão real no Supabase. Diferente de um "save" (que só faz upsert dos itens
+  // que sobraram), isso garante que o registro apagado localmente também seja
+  // removido de verdade no banco - essencial pra sincronizar exclusões entre
+  // dispositivos diferentes.
+  deleteRow: async (table: string, id: string) => {
+    const { error } = await supabase.from(table).delete().eq('id', id);
+    if (error) { console.error(`Failed to delete row from ${table}:`, error); throw error; }
+  },
+
   // --- SPECIFIC SAVERS ---
   saveTransactions: async (userId: string, txs: Transaction[]) => {
     saveLocalData(userId, { transactions: txs });

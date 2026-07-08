@@ -10,11 +10,12 @@ interface GoalsProps {
   accounts: Account[];
   onAdd: (g: Goal) => void;
   onUpdate: (goals: Goal[]) => void;
+  onDelete?: (id: string) => void;
   onDeposit: (amount: number, accountId: string, goalTitle: string) => void;
   onEdit?: (g: Goal) => void;
 }
 
-export default function Goals({ activeUserId, goals, accounts, onAdd, onUpdate, onDeposit, onEdit }: GoalsProps) {
+export default function Goals({ activeUserId, goals, accounts, onAdd, onUpdate, onDeposit, onEdit, onDelete }: GoalsProps) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [newGoal, setNewGoal] = useState({ title: '', target_amount: 0, deadline: '' });
@@ -72,7 +73,8 @@ export default function Goals({ activeUserId, goals, accounts, onAdd, onUpdate, 
 
   const removeGoal = (id: string) => {
     if(confirm('Deseja realmente remover esta meta?')) {
-        onUpdate(goals.filter(g => g.id !== id));
+        if (onDelete) onDelete(id);
+        else onUpdate(goals.filter(g => g.id !== id));
     }
   };
 
