@@ -66,7 +66,11 @@ export default function Transactions({
 
   const paymentMethods = ['PIX', 'Dinheiro', 'Cartão de Débito', 'Cartão de Crédito', 'Transferência', 'Boleto'];
 
-  // Effect para abrir o modal quando dados pré-preenchidos (IA) chegarem
+  // Effect para abrir o modal quando dados pré-preenchidos (IA/atalho) chegarem.
+  // Importante: só depende de `preFilledData` - se também dependesse de
+  // `accounts`/`categories`, qualquer recálculo de saldo (que troca a
+  // referência desses arrays) reabria a caixa de lançamento logo depois de
+  // confirmar, já que o preFilledData ainda não tinha sido limpo no App.tsx.
   useEffect(() => {
     if (preFilledData) {
       const category = categories.find(c => c.name === (preFilledData as any).category);
@@ -78,7 +82,8 @@ export default function Transactions({
       });
       setModalType('add');
     }
-  }, [preFilledData, categories, accounts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preFilledData]);
 
   // Atualiza o range de datas quando o mês selecionado muda
   useEffect(() => {

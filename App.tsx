@@ -5,7 +5,7 @@ import {
   AlertCircle, Plus, Settings as SettingsIcon, Camera, Mic, Loader2, StopCircle, LogOut, Shield, Wallet, Lock, Crown, Check, CreditCard as CreditCardIcon, ShoppingBag, Activity, ArrowUpCircle, ArrowDownCircle, Eye, Fingerprint,
   BarChart2, CheckSquare, StickyNote, Book, Calendar as CalendarIcon, MessageSquare, PieChart, Tag
 } from 'lucide-react';
-import { AppView, Transaction, Account, Debt, Goal, Category, Subcategory, Profile, Plan, Settings as SettingsType, FinancialData, Subscription, Task, Note, JournalEntry, CalendarEvent, Budget, TransactionAllocation } from './types';
+import { AppView, Transaction, Account, Debt, Goal, Category, Subcategory, Profile, Plan, Settings as SettingsType, FinancialData, Subscription, Task, Note, JournalEntry, CalendarEvent, Budget, TransactionAllocation, CreditCard } from './types';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import Compromissos from './components/Compromissos';
@@ -20,6 +20,8 @@ import Tasks from './components/Tasks';
 import Notes from './components/Notes';
 import Journal from './components/Journal';
 import CalendarView from './components/Calendar';
+import Cartoes from './components/Cartoes';
+import CardExpenseModal from './components/CardExpenseModal';
 import Budgets from './components/Budgets';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import AIAdvisor from './components/AIAdvisor';
@@ -96,6 +98,8 @@ export default function App() {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionAllocations, setTransactionAllocations] = useState<TransactionAllocation[]>([]);
+  const [cards, setCards] = useState<CreditCard[]>([]);
+  const [showCardExpenseModal, setShowCardExpenseModal] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -292,6 +296,7 @@ export default function App() {
         
         setTransactions(data.transactions || []);
         setTransactionAllocations(data.transaction_allocations || []);
+        setCards(data.cards || []);
 
         const safeAccounts = data.accounts.length
           ? data.accounts
@@ -359,11 +364,11 @@ export default function App() {
 
     const monthlyIncome = transactions
       .filter(t => t.type === 'income' && t.date_at?.startsWith(currentMonthStr))
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + Number(t.amount), 0);
 
     const monthlyExpenses = transactions
       .filter(t => t.type === 'expense' && t.date_at?.startsWith(currentMonthStr))
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + Number(t.amount), 0);
 
     // IMPORTANT: Pot balances are accumulated strictly from actual data already
     // persisted (income via transaction_allocations, expenses via transactions
@@ -374,20 +379,20 @@ export default function App() {
     const processed = accounts.map(acc => {
       const incomes = transactionAllocations
         .filter(a => a.account_id === acc.id)
-        .reduce((sum, a) => sum + a.amount, 0);
+        .reduce((sum, a) => sum + Number(a.amount), 0);
 
       // Receita manual, lançada direto numa conta específica (sem passar pelo rateio automático)
       const directIncomes = transactions
         .filter(t => t.type === 'income' && t.account_id === acc.id)
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + Number(t.amount), 0);
 
       const expenses = transactions
         .filter(t => t.type === 'expense' && t.account_id === acc.id)
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + Number(t.amount), 0);
 
       return {
         ...acc,
-        current_balance: (acc.balance_initial || 0) + incomes + directIncomes - expenses
+        current_balance: Number(acc.balance_initial || 0) + incomes + directIncomes - expenses
       };
     });
 
@@ -419,6 +424,7 @@ export default function App() {
     { id: 'accounts' as any, label: 'Potes', icon: Archive, section: 'FINANCEIRO' },
     { id: 'goals', label: 'Metas', icon: Target, section: 'FINANCEIRO' },
     { id: 'compromissos', label: 'Dívidas', icon: AlertCircle, section: 'FINANCEIRO' },
+    { id: 'cartoes' as any, label: 'Cartões', icon: CreditCardIcon, section: 'FINANCEIRO' },
     { id: 'categories' as any, label: 'Categorias', icon: Tag, section: 'FINANCEIRO' },
     { id: 'tasks', label: 'Tarefas', icon: CheckSquare, section: 'PRODUTIVIDADE' },
     { id: 'notes', label: 'Notas', icon: StickyNote, section: 'PRODUTIVIDADE' },
@@ -509,6 +515,7 @@ export default function App() {
 
     const newTxs = [...newEntries, ...transactions];
     setTransactions(newTxs);
+    setPreFilledTx(null); // limpa já, antes dos saves assíncronos - evita a caixa reabrir
 
     try {
       // As alocações têm uma chave estrangeira apontando pra transação - por isso
@@ -528,7 +535,6 @@ export default function App() {
 
     const label = Array.isArray(t) ? 'Lançamentos registrados!' : `${(t as Transaction).type === 'income' ? 'Entrada' : 'Despesa'} registrada!`;
     showToast(label);
-    setPreFilledTx(null);
   };
 
   const handleUpdateDebts = (updatedDebts: Debt[]) => {
@@ -579,6 +585,41 @@ export default function App() {
       updated_at: new Date().toISOString()
     };
     handleAddTransaction(paymentTx);
+  };
+
+  // Paga várias parcelas de uma fatura de cartão de uma vez, todas saindo do
+  // mesmo pote escolhido - reaproveita a mesma regra de pagamento das dívidas.
+  const handleInvoicePayment = (debtIds: string[], accountId: string, totalAmount: number) => {
+    if (!activeUser) return;
+    const today = new Date().toISOString().split('T')[0];
+
+    const updatedDebts = debts.map(d => {
+      if (debtIds.includes(d.id)) {
+        return { ...d, paid_amount: d.total_amount, status: 'paid' } as Debt;
+      }
+      return d;
+    });
+    setDebts(updatedDebts);
+    db.saveDebts(activeUser.id, updatedDebts);
+
+    const paymentTx: Transaction = {
+      id: crypto.randomUUID(),
+      user_id: activeUser.id,
+      description: `Pagamento de fatura (${debtIds.length} parcela${debtIds.length > 1 ? 's' : ''})`,
+      amount: totalAmount,
+      category_id: null,
+      subcategory_id: null,
+      account_id: accountId,
+      date_at: today,
+      type: 'expense',
+      payment_method: 'Transferência',
+      is_recurring: false,
+      note: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    handleAddTransaction(paymentTx);
+    showToast('Fatura paga com sucesso!');
   };
 
   const handleGoalDeposit = (amount: number, account_id: string, goalTitle: string) => {
@@ -678,9 +719,14 @@ export default function App() {
   };
 
   const handleQuickAction = (type: 'income' | 'expense' | 'transfer' | 'card') => {
+    if (type === 'card') {
+      setShowCardExpenseModal(true);
+      setIsFabOpen(false);
+      return;
+    }
+
     let txType: 'income' | 'expense' = (type === 'income') ? 'income' : 'expense';
     let paymentMethod = 'Dinheiro';
-    if (type === 'card') paymentMethod = 'Cartão de Crédito';
     if (type === 'transfer') paymentMethod = 'Transferência';
 
     setPreFilledTx({ 
@@ -891,6 +937,19 @@ export default function App() {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       
       <input type="file" accept="image/*" capture="environment" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+
+      {showCardExpenseModal && activeUser && (
+        <CardExpenseModal
+          cards={cards}
+          userId={activeUser.id}
+          onClose={() => setShowCardExpenseModal(false)}
+          onSubmit={(newDebts) => {
+            updateAndSave((prev: Debt[]) => [...prev, ...newDebts], setDebts, db.saveDebts);
+            setShowCardExpenseModal(false);
+            showToast('Gasto no cartão lançado!');
+          }}
+        />
+      )}
       {isProcessing && (
         <div className="fixed inset-0 z-[100] bg-white/80 dark:bg-black/80 backdrop-blur-md flex items-center justify-center flex-col gap-6 p-6 text-center">
           <div className="relative">
@@ -1068,6 +1127,20 @@ export default function App() {
                 onEdit={(d) => handleUpdateDebts([d])}
                 onDelete={handleDeleteDebt}
                 onPay={handleDebtPayment} 
+              />
+            )}
+            {view === 'cartoes' as any && (
+              <Cartoes
+                cards={cards}
+                debts={debts}
+                accounts={processedAccounts}
+                userId={activeUser.id}
+                onUpdateCards={(newCards) => updateAndSave(() => newCards, setCards, db.saveCards)}
+                onDeleteCard={(id) => {
+                  db.deleteRow('cards', id).catch(err => console.error(err));
+                  updateAndSave((prev: CreditCard[]) => prev.filter(c => c.id !== id), setCards, db.saveCards);
+                }}
+                onPayInvoice={handleInvoicePayment}
               />
             )}
             {view === 'accounts' as any && (

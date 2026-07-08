@@ -94,7 +94,7 @@ export default function Potes({ activeUserId, accounts, transactions, allocation
           date: parentTx?.date_at || a.created_at,
           description: parentTx?.description || 'Receita',
           categoryId: parentTx?.category_id || null,
-          amount: a.amount,
+          amount: Number(a.amount),
           type: 'income' as const,
         };
       });
@@ -106,7 +106,7 @@ export default function Potes({ activeUserId, accounts, transactions, allocation
         date: t.date_at,
         description: t.description,
         categoryId: t.category_id,
-        amount: t.amount,
+        amount: Number(t.amount),
         type: t.type,
       }));
 

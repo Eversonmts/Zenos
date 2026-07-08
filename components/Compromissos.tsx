@@ -66,6 +66,9 @@ export default function Compromissos({ activeUserId, debts, accounts, transactio
   });
 
   const totalDebt = debts.filter(d => d.status !== 'paid').reduce((acc, d) => acc + (d.total_amount - d.paid_amount), 0);
+  // Subtotal só das parcelas de cartão de crédito (dado informativo - já está
+  // somado dentro de totalDebt junto com as outras dívidas).
+  const totalCardDebt = debts.filter(d => d.status !== 'paid' && d.card_id).reduce((acc, d) => acc + (d.total_amount - d.paid_amount), 0);
   const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   const monthLabel = `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
 
@@ -284,6 +287,7 @@ export default function Compromissos({ activeUserId, debts, accounts, transactio
                 </h3>
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
                     Saldo Total Devedor: R$ {formatCurrency(totalDebt)}
+                    {totalCardDebt > 0 && <span className="text-indigo-400"> · Cartões: R$ {formatCurrency(totalCardDebt)}</span>}
                 </span>
             </div>
             

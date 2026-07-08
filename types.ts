@@ -151,6 +151,8 @@ export interface Debt {
   due_date: string | null;
   status: DebtStatus;
   installments?: number; // added
+  card_id?: string | null; // preenchido quando a dívida é uma parcela de cartão de crédito
+  installment_number?: number | null; // qual parcela (ex: 2 de 6)
   created_at: string;
   updated_at: string;
 }
@@ -159,11 +161,13 @@ export interface CreditCard {
   id: string;
   user_id: string;
   name: string;
+  last_4_digits?: string | null;
   limit: number;
-  closing_day: number;
-  due_day: number;
+  closing_day: number; // "melhor dia de compra"
+  due_day: number; // vencimento da fatura
   color: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Invoice {
@@ -300,6 +304,7 @@ export interface FinancialData {
   accounts: Account[];
   transactions: Transaction[];
   transaction_allocations: TransactionAllocation[];
+  cards: CreditCard[];
   goals: Goal[];
   debts: Debt[];
   tasks: Task[];

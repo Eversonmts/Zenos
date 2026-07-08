@@ -47,7 +47,7 @@ const saveLocalData = (userId: string, data: Partial<FinancialData>) => {
       plans: [],
       subscriptions: [],
       categories: [],
-      subcategories: [], transaction_allocations: [],
+      subcategories: [], transaction_allocations: [], cards: [],
       accounts: [],
       transactions: [],
       goals: [],
@@ -226,7 +226,7 @@ export const db = {
 
       return {
         profiles: [], plans: [], subscriptions: [], categories: DEFAULT_CATEGORIES,
-        subcategories: [], transaction_allocations: [],
+        subcategories: [], transaction_allocations: [], cards: [],
         accounts: INITIAL_ACCOUNTS, transactions: [], goals: [], debts: [],
         tasks: [], notes: [], journal: [], calendar: [], budgets: [],
         settings: []
@@ -251,7 +251,7 @@ export const db = {
       setSyncStatus('error');
       return {
         profiles: [], plans: [], subscriptions: [], categories: DEFAULT_CATEGORIES,
-        subcategories: [], transaction_allocations: [],
+        subcategories: [], transaction_allocations: [], cards: [],
         accounts: INITIAL_ACCOUNTS, transactions: [], goals: [], debts: [],
         tasks: [], notes: [], journal: [], calendar: [], budgets: [],
         settings: []
@@ -456,6 +456,13 @@ export const db = {
     if (error) { console.error("Failed to save calendar events:", error); throw error; }
   },
 
+  saveCards: async (userId: string, cards: any[]) => {
+    saveLocalData(userId, { cards });
+    if (isTestUser(userId)) return;
+    const { error } = await supabase.from('cards').upsert(cards.map(c => ({ ...c, user_id: userId })));
+    if (error) { console.error("Failed to save cards:", error); throw error; }
+  },
+
   // Salva o rateio de uma receita entre potes (não duplica a transação, só o detalhamento)
   saveAllocations: async (userId: string, allocations: TransactionAllocation[]) => {
     saveLocalData(userId, { transaction_allocations: allocations });
@@ -496,7 +503,7 @@ export const db = {
 
 // Fetches every user-owned table from Supabase in parallel.
 async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
-  const tables = ['categories', 'subcategories', 'accounts', 'transactions', 'goals', 'debts', 'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets'] as const;
+  const tables = ['categories', 'subcategories', 'accounts', 'transactions', 'goals', 'debts', 'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards'] as const;
 
   const results = await Promise.all(tables.map(table =>
     supabase.from(table).select('*').eq('user_id', userId)
@@ -533,5 +540,6 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
     journal: byTable.journal as any[],
     calendar: byTable.calendar as any[],
     budgets: byTable.budgets as any[],
+    cards: byTable.cards as any[],
   };
 }

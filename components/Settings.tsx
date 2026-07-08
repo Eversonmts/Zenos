@@ -111,6 +111,36 @@ export default function Settings({
     showToast('Categoria criada com sucesso!', 'success');
   };
 
+  const [editingSubId, setEditingSubId] = useState<string | null>(null);
+  const [editSubName, setEditSubName] = useState('');
+  const [editCatName, setEditCatName] = useState('');
+  const [editCatType, setEditCatType] = useState<'income' | 'expense'>('expense');
+
+  const startEditCategory = (cat: Category) => {
+    setEditingCatId(cat.id);
+    setEditCatName(cat.name);
+    setEditCatType(cat.type as 'income' | 'expense');
+  };
+
+  const handleSaveEditCategory = (id: string) => {
+    if (!editCatName.trim()) return;
+    onUpdateCategories(categories.map(c => c.id === id ? { ...c, name: editCatName.trim(), type: editCatType } : c));
+    setEditingCatId(null);
+    showToast('Categoria atualizada!', 'success');
+  };
+
+  const startEditSubcategory = (sub: Subcategory) => {
+    setEditingSubId(sub.id);
+    setEditSubName(sub.name);
+  };
+
+  const handleSaveEditSubcategory = (id: string) => {
+    if (!editSubName.trim()) return;
+    onUpdateSubcategories(subcategories.map(s => s.id === id ? { ...s, name: editSubName.trim() } : s));
+    setEditingSubId(null);
+    showToast('Subcategoria atualizada!', 'success');
+  };
+
   const handleDeleteCategory = (id: string) => {
     if (confirm('Tem certeza? Isso pode afetar registros históricos.')) {
       db.deleteRow('categories', id).catch(err => console.error(err));
@@ -233,32 +263,6 @@ export default function Settings({
             <div className="text-left">
               <p className="text-xs font-black uppercase tracking-widest">Perfil</p>
               <p className={`text-[9px] font-bold ${activeTab === 'profile' ? 'text-indigo-100' : 'text-slate-400'}`}>Meus dados e senha</p>
-            </div>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('categories')}
-            className={`w-full flex items-center gap-4 p-4 rounded-3xl transition-all ${activeTab === 'categories' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'bg-white dark:bg-[#0a0c14] text-slate-600 hover:bg-slate-50 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5'}`}
-          >
-            <div className={`p-2 rounded-xl ${activeTab === 'categories' ? 'bg-white/20' : 'bg-emerald-50 dark:bg-emerald-500/10'}`}>
-              <Tag className={`w-5 h-5 ${activeTab === 'categories' ? 'text-white' : 'text-emerald-600'}`} />
-            </div>
-            <div className="text-left">
-              <p className="text-xs font-black uppercase tracking-widest">Categorias</p>
-              <p className={`text-[9px] font-bold ${activeTab === 'categories' ? 'text-indigo-100' : 'text-slate-400'}`}>Gestão de gastos</p>
-            </div>
-          </button>
-
-          <button 
-            onClick={() => setActiveTab('payments')}
-            className={`w-full flex items-center gap-4 p-4 rounded-3xl transition-all ${activeTab === 'payments' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'bg-white dark:bg-[#0a0c14] text-slate-600 hover:bg-slate-50 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5'}`}
-          >
-            <div className={`p-2 rounded-xl ${activeTab === 'payments' ? 'bg-white/20' : 'bg-amber-50 dark:bg-amber-500/10'}`}>
-              <CreditCard className={`w-5 h-5 ${activeTab === 'payments' ? 'text-white' : 'text-amber-600'}`} />
-            </div>
-            <div className="text-left">
-              <p className="text-xs font-black uppercase tracking-widest">Pagamentos</p>
-              <p className={`text-[9px] font-bold ${activeTab === 'payments' ? 'text-indigo-100' : 'text-slate-400'}`}>Métodos aceitos</p>
             </div>
           </button>
 
@@ -566,6 +570,29 @@ export default function Settings({
                      const isExpanded = expandedCatId === cat.id;
                      return (
                      <div key={cat.id} className="bg-slate-50 dark:bg-[#111827]/40 rounded-3xl border border-slate-200 dark:border-white/5 overflow-hidden">
+                        {editingCatId === cat.id ? (
+                          <div className="p-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-white/50 dark:bg-white/5">
+                            <input
+                              autoFocus
+                              className="flex-1 px-4 py-2.5 bg-white dark:bg-[#030712] border border-indigo-500/50 rounded-xl text-sm text-slate-900 dark:text-white outline-none"
+                              value={editCatName}
+                              onChange={e => setEditCatName(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') handleSaveEditCategory(cat.id); if (e.key === 'Escape') setEditingCatId(null); }}
+                            />
+                            <select
+                              className="px-4 py-2.5 bg-white dark:bg-[#030712] border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white outline-none"
+                              value={editCatType}
+                              onChange={e => setEditCatType(e.target.value as any)}
+                            >
+                              <option value="expense">Despesa</option>
+                              <option value="income">Receita</option>
+                            </select>
+                            <div className="flex gap-2">
+                              <button onClick={() => handleSaveEditCategory(cat.id)} className="p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500"><Check className="w-4 h-4" /></button>
+                              <button onClick={() => setEditingCatId(null)} className="p-2.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl"><X className="w-4 h-4" /></button>
+                            </div>
+                          </div>
+                        ) : (
                         <div className="p-4 flex items-center justify-between bg-white/50 dark:bg-white/5">
                            <button
                              className="flex items-center gap-3 flex-1 text-left"
@@ -582,9 +609,11 @@ export default function Settings({
                               <button onClick={() => setExpandedCatId(isExpanded ? null : cat.id)} className="p-2 text-slate-600 hover:text-indigo-500">
                                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                               </button>
+                              <button onClick={() => startEditCategory(cat)} className="p-2 text-slate-600 hover:text-indigo-500"><Edit2 className="w-4 h-4" /></button>
                               <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 text-slate-600 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
                            </div>
                         </div>
+                        )}
 
                         {isExpanded && (
                           <div className="p-4 space-y-3 border-t border-slate-200 dark:border-white/5">
@@ -610,12 +639,29 @@ export default function Settings({
                              ) : (
                                <div className="flex flex-wrap gap-2">
                                  {catSubs.map(sub => (
+                                   editingSubId === sub.id ? (
+                                     <div key={sub.id} className="flex items-center gap-1.5 bg-white dark:bg-slate-900/60 border border-indigo-500/50 rounded-full pl-3 pr-1 py-1">
+                                       <input
+                                         autoFocus
+                                         className="w-24 bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
+                                         value={editSubName}
+                                         onChange={e => setEditSubName(e.target.value)}
+                                         onKeyDown={e => { if (e.key === 'Enter') handleSaveEditSubcategory(sub.id); if (e.key === 'Escape') setEditingSubId(null); }}
+                                       />
+                                       <button onClick={() => handleSaveEditSubcategory(sub.id)} className="p-1 text-indigo-500 hover:bg-indigo-500/10 rounded-full"><Check className="w-3 h-3" /></button>
+                                       <button onClick={() => setEditingSubId(null)} className="p-1 text-slate-400 hover:bg-slate-200 dark:hover:bg-white/10 rounded-full"><X className="w-3 h-3" /></button>
+                                     </div>
+                                   ) : (
                                    <div key={sub.id} className="flex items-center gap-2 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-full pl-3 pr-1 py-1">
                                      <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{sub.name}</span>
+                                     <button onClick={() => startEditSubcategory(sub)} className="p-1 text-slate-400 hover:text-indigo-500 rounded-full hover:bg-indigo-500/10">
+                                       <Edit2 className="w-3 h-3" />
+                                     </button>
                                      <button onClick={() => handleDeleteSubcategory(sub.id)} className="p-1 text-slate-400 hover:text-rose-500 rounded-full hover:bg-rose-500/10">
                                        <X className="w-3 h-3" />
                                      </button>
                                    </div>
+                                   )
                                  ))}
                                </div>
                              )}
@@ -624,17 +670,6 @@ export default function Settings({
                      </div>
                    );})}
                 </div>
-              </div>
-            )}
-
-            {activeTab === 'payments' && (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                 <CreditCard className="w-16 h-16 text-indigo-500/20 mb-6" />
-                 <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter mb-2">Formas de Pagamento</h3>
-                 <p className="text-slate-600 dark:text-slate-400 text-sm max-w-xs">
-                    Gerencie suas formas de pagamento para lançamentos recorrentes.
-                 </p>
-                 <p className="text-[#4e545a] dark:text-slate-700 font-black uppercase text-[10px] tracking-widest mt-4">Em desenvolvimento</p>
               </div>
             )}
 
