@@ -514,7 +514,18 @@ export default function App() {
     }
 
     const newTxs = [...newEntries, ...transactions];
+    const updatedAllocations = newAllocations.length > 0
+      ? [...transactionAllocations, ...newAllocations]
+      : transactionAllocations;
+
+    // Atualiza AMBOS os estados (transações + alocações) no mesmo ciclo de render,
+    // para que o useMemo do totalBalance recalcule com os dois dados atualizados.
+    // Antes, setTransactionAllocations ficava depois do await e o saldo total
+    // era recalculado só com as transações novas mas as allocations antigas → 0.
     setTransactions(newTxs);
+    if (newAllocations.length > 0) {
+      setTransactionAllocations(updatedAllocations);
+    }
     setPreFilledTx(null); // limpa já, antes dos saves assíncronos - evita a caixa reabrir
 
     try {
@@ -523,8 +534,6 @@ export default function App() {
       await db.saveTransactions(activeUser.id, newTxs);
 
       if (newAllocations.length > 0) {
-        const updatedAllocations = [...transactionAllocations, ...newAllocations];
-        setTransactionAllocations(updatedAllocations);
         await db.saveAllocations(activeUser.id, updatedAllocations);
       }
     } catch (err) {

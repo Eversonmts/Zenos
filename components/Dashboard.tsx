@@ -42,13 +42,13 @@ export default function Dashboard({
   const { transactions, accounts, debts, goals, tasks, notes, journal, budgets } = data;
   
   // Use props if available, otherwise calculate locally
-  const currentTotalBalance = propTotalBalance ?? accounts.reduce((acc, a) => acc + a.current_balance, 0);
+  const currentTotalBalance = propTotalBalance ?? accounts.reduce((acc, a) => acc + Number(a.current_balance), 0);
   const currentMonthlyIncome = propTotalMonthlyIncome ?? transactions
     .filter(t => t.type === 'income' && t.date_at?.startsWith(new Date().toISOString().slice(0, 7)))
-    .reduce((acc, t) => acc + t.amount, 0);
+    .reduce((acc, t) => acc + Number(t.amount), 0);
   const currentMonthlyExpenses = propMonthExpenses ?? transactions
     .filter(t => t.type === 'expense' && t.date_at?.startsWith(new Date().toISOString().slice(0, 7)))
-    .reduce((acc, t) => acc + t.amount, 0);
+    .reduce((acc, t) => acc + Number(t.amount), 0);
   
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -102,19 +102,19 @@ export default function Dashboard({
   const monthIncome = useMemo(() => {
     return filteredTransactions
       .filter(t => t.type === 'income')
-      .reduce((acc, t) => acc + t.amount, 0);
+      .reduce((acc, t) => acc + Number(t.amount), 0);
   }, [filteredTransactions]);
 
   const monthExpenses = useMemo(() => {
     return filteredTransactions
       .filter(t => t.type === 'expense')
-      .reduce((acc, t) => acc + t.amount, 0);
+      .reduce((acc, t) => acc + Number(t.amount), 0);
   }, [filteredTransactions]);  // Recalcular saldos das contas para o mês selecionado
   const monthAccounts = useMemo(() => {
     const expenseByAccount: Record<string, number> = {};
     filteredTransactions.forEach(t => {
       if (t.type === 'expense' && t.account_id) {
-        expenseByAccount[t.account_id] = (expenseByAccount[t.account_id] || 0) + t.amount;
+        expenseByAccount[t.account_id] = (expenseByAccount[t.account_id] || 0) + Number(t.amount);
       }
     });
 
@@ -157,7 +157,7 @@ export default function Dashboard({
     const categoryTotals: Record<string, number> = {};
     expenses.forEach(t => {
       const cat = data.categories.find(c => c.id === t.category_id)?.name || 'Outros';
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + t.amount;
+      categoryTotals[cat] = (categoryTotals[cat] || 0) + Number(t.amount);
     });
     return Object.entries(categoryTotals)
       .map(([name, value]) => ({ name, value }))
