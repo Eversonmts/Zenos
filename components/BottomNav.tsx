@@ -44,10 +44,10 @@ export default function BottomNav({ currentView, onNavigate, onQuickAction, onTo
   });
 
   const quickActions = [
-    { id: 'transfer', label: 'Transferência', icon: Repeat, color: 'bg-white', iconColor: 'text-indigo-600', position: { bottom: 100, left: '15%' } },
+    { id: 'transfer', label: 'Transferência', icon: Repeat, color: 'bg-white', iconColor: 'text-indigo-600', position: { bottom: 100, left: '18%' } },
     { id: 'income', label: 'Receita', icon: TrendingUp, color: 'bg-white', iconColor: 'text-emerald-600', position: { bottom: 220, left: '30%' } },
     { id: 'card', label: 'Gasto cartão', icon: CreditCard, color: 'bg-white', iconColor: 'text-cyan-600', position: { bottom: 220, left: '70%' } },
-    { id: 'expense', label: 'Gasto', icon: TrendingDown, color: 'bg-white', iconColor: 'text-rose-600', position: { bottom: 100, left: '85%' } },
+    { id: 'expense', label: 'Gasto', icon: TrendingDown, color: 'bg-white', iconColor: 'text-rose-600', position: { bottom: 100, left: '82%' } },
   ];
 
   return (

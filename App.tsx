@@ -179,6 +179,13 @@ export default function App() {
   }, [simulatedUser?.menu_size, user?.menu_size]);
 
   useEffect(() => {
+    // Só aplica escala de fontSize em telas desktop (>=1024px).
+    // Em mobile, fontSize fixo em 100% para não causar overflow.
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    if (!isDesktop) {
+      document.documentElement.style.fontSize = '100%';
+      return;
+    }
     let sizePercent = '100%';
     if (menuSize === 'xs') {
       sizePercent = '70%'; // Muito Pequena: 30% menor que a normal
@@ -931,7 +938,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-50 dark:bg-[#030712] text-[#1c1f22] dark:text-slate-200 font-sans overflow-hidden select-none transition-colors duration-300">
+    <div className="min-h-screen w-full max-w-[100vw] flex bg-slate-50 dark:bg-[#030712] text-[#1c1f22] dark:text-slate-200 font-sans overflow-hidden overflow-x-hidden select-none transition-colors duration-300">
       {simulatedUser && (
         <div className="fixed top-0 left-0 right-0 bg-indigo-600 text-white px-4 py-2 z-[100] flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
@@ -990,7 +997,7 @@ export default function App() {
 
       <div className={`fixed inset-0 bg-black/80 backdrop-blur-md z-[60] lg:hidden transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsSidebarOpen(false)} />
       
-      <aside className={`fixed lg:sticky top-0 left-0 h-screen z-[70] transition-all duration-300 ${isSidebarOpen ? 'w-72 translate-x-0' : 'w-72 -translate-x-full lg:translate-x-0 lg:w-20 xl:w-72'} bg-white dark:bg-[#0a0c14] border-r border-slate-200 dark:border-white/5 flex flex-col shadow-2xl lg:shadow-none`}>
+      <aside className={`fixed lg:sticky top-0 left-0 h-[100dvh] lg:h-screen z-[70] transition-all duration-300 ${isSidebarOpen ? 'w-[85vw] max-w-72 translate-x-0' : 'w-[85vw] max-w-72 -translate-x-full lg:translate-x-0 lg:w-20 xl:w-72'} bg-white dark:bg-[#0a0c14] border-r border-slate-200 dark:border-white/5 flex flex-col shadow-2xl lg:shadow-none`}>
         {/* Sidebar Header with User Info (Moved from top bar) */}
         <div className="p-6 flex flex-col gap-6">
           <div className="flex items-center justify-between">
@@ -1016,7 +1023,7 @@ export default function App() {
           </button>
         </div>
 
-        <nav className="flex-1 px-3 space-y-6 overflow-y-auto">
+        <nav className="flex-1 px-3 space-y-6 overflow-y-auto overscroll-contain pb-4">
           {sections.map(sectionName => {
              const items = navItems.filter(item => item.section === sectionName && (!item.adminOnly || user.role === 'admin'));
              if (items.length === 0) return null;
@@ -1029,7 +1036,7 @@ export default function App() {
                         if (item.id === 'categories') { setView('settings'); setSettingsTab('categories'); }
                         else setView(item.id);
                         setIsSidebarOpen(false);
-                      }} className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all ${view === item.id || (item.id === 'categories' && view === 'settings' && settingsTab === 'categories') ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/10' : 'text-[#4e545a] dark:text-slate-600 hover:text-[#212529] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'}`}>
+                      }} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all min-h-[44px] ${view === item.id || (item.id === 'categories' && view === 'settings' && settingsTab === 'categories') ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/10' : 'text-[#4e545a] dark:text-slate-600 hover:text-[#212529] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'}`}>
                       <item.icon className={`w-5 h-5 flex-shrink-0 ${view === item.id ? 'text-white' : ''}`} />
                       <span className="font-bold text-sm lg:hidden xl:block flex items-center gap-1.5">
                         {item.label}
@@ -1047,7 +1054,7 @@ export default function App() {
             );
           })}
         </nav>
-        <div className="px-4 py-4 space-y-2">
+        <div className="px-4 py-4 space-y-2 flex-shrink-0">
             {activeUser?.id?.startsWith('imei-') ? (
               <button 
                 onClick={() => setIsLoginModalOpen(true)}

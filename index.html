@@ -18,6 +18,8 @@
             overscroll-behavior-x: none;
             height: 100%;
             overflow: hidden; /* O App.tsx gerencia o scroll interno */
+            overflow-x: hidden; /* Impede scroll horizontal em mobile */
+            max-width: 100vw;
         }
         body { 
             font-family: 'Inter', sans-serif; 
