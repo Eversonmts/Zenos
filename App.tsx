@@ -530,7 +530,7 @@ export default function App() {
     } catch (err) {
       console.error('Failed to save transaction:', err);
       showToast('Erro ao salvar o lançamento. Tente novamente.', 'error');
-      return;
+      throw err;
     }
 
     const label = Array.isArray(t) ? 'Lançamentos registrados!' : `${(t as Transaction).type === 'income' ? 'Entrada' : 'Despesa'} registrada!`;
