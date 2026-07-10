@@ -1,21 +1,28 @@
 import React, { useState, useMemo } from 'react';
 import { X, CreditCard as CardIcon } from 'lucide-react';
-import { CreditCard, Debt } from '../types';
+import { CreditCard, Debt, Category, Subcategory } from '../types';
 import { calculateInstallmentDueDates, formatCurrency, formatDisplayDate } from '../lib/utils';
 
 interface CardExpenseModalProps {
   cards: CreditCard[];
+  categories: Category[];
+  subcategories: Subcategory[];
   onClose: () => void;
   onSubmit: (debts: Debt[]) => void;
   userId: string;
 }
 
-export default function CardExpenseModal({ cards, onClose, onSubmit, userId }: CardExpenseModalProps) {
+export default function CardExpenseModal({ cards, categories, subcategories, onClose, onSubmit, userId }: CardExpenseModalProps) {
   const [cardId, setCardId] = useState(cards[0]?.id || '');
   const [description, setDescription] = useState('');
   const [totalAmount, setTotalAmount] = useState<number>(0);
   const [installments, setInstallments] = useState(1);
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
+  const [categoryId, setCategoryId] = useState('');
+  const [subcategoryId, setSubcategoryId] = useState('');
+
+  const debtCategories = categories.filter(c => c.type === 'debt');
+  const availableSubcategories = subcategories.filter(s => s.category_id === categoryId);
 
   const selectedCard = cards.find(c => c.id === cardId);
 
@@ -46,6 +53,8 @@ export default function CardExpenseModal({ cards, onClose, onSubmit, userId }: C
         installments: installments,
         installment_number: p.index,
         card_id: selectedCard.id,
+        category_id: categoryId || null,
+        subcategory_id: subcategoryId || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       } as Debt;
@@ -79,6 +88,23 @@ export default function CardExpenseModal({ cards, onClose, onSubmit, userId }: C
           <div className="space-y-2">
             <label className="text-[10px] font-black text-[#4e545a] dark:text-slate-600 uppercase tracking-widest ml-1">Descrição</label>
             <input required className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-[#212529] dark:text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500" value={description} onChange={e => setDescription(e.target.value)} placeholder="Ex: Compras no mercado" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-[#4e545a] dark:text-slate-600 uppercase tracking-widest ml-1">Categoria</label>
+              <select className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={categoryId} onChange={e => { setCategoryId(e.target.value); setSubcategoryId(''); }}>
+                <option value="">Sem categoria</option>
+                {debtCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-[#4e545a] dark:text-slate-600 uppercase tracking-widest ml-1">Subcategoria</label>
+              <select disabled={!categoryId} className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50" value={subcategoryId} onChange={e => setSubcategoryId(e.target.value)}>
+                <option value="">Nenhuma</option>
+                {availableSubcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

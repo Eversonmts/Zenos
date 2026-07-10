@@ -23,6 +23,7 @@ import CalendarView from './components/Calendar';
 import Cartoes from './components/Cartoes';
 import CardExpenseModal from './components/CardExpenseModal';
 import Budgets from './components/Budgets';
+import Budgets from './components/Budgets';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import AIAdvisor from './components/AIAdvisor';
 import ZenOSLogo from './components/ZenOSLogo';
@@ -432,6 +433,7 @@ export default function App() {
     { id: 'goals', label: 'Metas', icon: Target, section: 'FINANCEIRO' },
     { id: 'compromissos', label: 'Dívidas', icon: AlertCircle, section: 'FINANCEIRO' },
     { id: 'cartoes' as any, label: 'Cartões', icon: CreditCardIcon, section: 'FINANCEIRO' },
+    { id: 'budgets' as any, label: 'Orçamentos', icon: PieChart, section: 'FINANCEIRO' },
     { id: 'categories' as any, label: 'Categorias', icon: Tag, section: 'FINANCEIRO' },
     { id: 'tasks', label: 'Tarefas', icon: CheckSquare, section: 'PRODUTIVIDADE' },
     { id: 'notes', label: 'Notas', icon: StickyNote, section: 'PRODUTIVIDADE' },
@@ -957,6 +959,8 @@ export default function App() {
       {showCardExpenseModal && activeUser && (
         <CardExpenseModal
           cards={cards}
+          categories={categories}
+          subcategories={subcategories}
           userId={activeUser.id}
           onClose={() => setShowCardExpenseModal(false)}
           onSubmit={(newDebts) => {
@@ -1139,6 +1143,8 @@ export default function App() {
                 accounts={processedAccounts} 
                 cards={cards}
                 transactions={transactions}
+                categories={categories}
+                subcategories={subcategories}
                 onAdd={(d) => updateAndSave((prev: Debt[]) => Array.isArray(d) ? [...prev, ...d] : [...prev, d], setDebts, db.saveDebts)}
                 onUpdate={(d) => handleUpdateDebts([d])}
                 onEdit={(d) => handleUpdateDebts([d])}
@@ -1158,6 +1164,19 @@ export default function App() {
                   updateAndSave((prev: CreditCard[]) => prev.filter(c => c.id !== id), setCards, db.saveCards);
                 }}
                 onPayInvoice={handleInvoicePayment}
+              />
+            )}
+            {view === 'budgets' as any && (
+              <Budgets
+                budgets={budgets}
+                categories={categories}
+                transactions={transactions}
+                onAdd={(b) => updateAndSave((prev: Budget[]) => [...prev, b], setBudgets, db.saveBudgets)}
+                onUpdate={(b) => updateAndSave((prev: Budget[]) => prev.map(x => x.id === b.id ? b : x), setBudgets, db.saveBudgets)}
+                onDelete={(id) => {
+                  db.deleteRow('budgets', id).catch(err => console.error(err));
+                  updateAndSave((prev: Budget[]) => prev.filter(b => b.id !== id), setBudgets, db.saveBudgets);
+                }}
               />
             )}
             {view === 'accounts' as any && (
@@ -1222,11 +1241,14 @@ export default function App() {
             {view === 'calendar' && (
               <CalendarView 
                 events={events}
+                debts={debts}
+                cards={cards}
                 onAdd={(e) => updateAndSave((prev: CalendarEvent[]) => [...prev, e], setEvents, db.saveCalendar)}
                 onDelete={(id) => {
                   db.deleteRow('calendar', id).catch(err => console.error(err));
                   updateAndSave((prev: CalendarEvent[]) => prev.filter(e => e.id !== id), setEvents, db.saveCalendar);
                 }}
+                onGoToDebt={() => setView('compromissos')}
               />
             )}
             {view === 'analytics' && (

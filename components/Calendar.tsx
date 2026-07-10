@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, X, Trash2, ChevronLeft, ChevronRight, CalendarDays, Clock } from 'lucide-react';
-import { CalendarEvent } from '../types';
+import { Plus, X, Trash2, ChevronLeft, ChevronRight, CalendarDays, Clock, AlertCircle, CreditCard as CardIcon } from 'lucide-react';
+import { CalendarEvent, Debt, CreditCard } from '../types';
 
 interface CalendarProps {
   events: CalendarEvent[];
+  debts: Debt[];
+  cards: CreditCard[];
   onAdd: (e: CalendarEvent) => void;
   onDelete: (id: string) => void;
+  onGoToDebt: () => void;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -16,7 +19,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   outro: '#64748B',
 };
 
-export default function CalendarView({ events, onAdd, onDelete }: CalendarProps) {
+export default function CalendarView({ events, debts, cards, onAdd, onDelete, onGoToDebt }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -29,6 +32,38 @@ export default function CalendarView({ events, onAdd, onDelete }: CalendarProps)
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  // Dívidas e parcelas de cartão viram "eventos virtuais" só de leitura no
+  // calendário - não duplicam dado nenhum, só refletem o due_date de cada uma.
+  const debtEvents = useMemo(() => {
+    return debts
+      .filter(d => d.due_date)
+      .map(d => {
+        const card = d.card_id ? cards.find(c => c.id === d.card_id) : null;
+        const isPaid = d.status === 'paid';
+        const isOverdue = !isPaid && d.due_date! < todayStr;
+        return {
+          id: `debt-${d.id}`,
+          debtId: d.id,
+          title: d.description,
+          day: d.due_date!.split('T')[0],
+          isCard: !!card,
+          cardName: card?.name,
+          amount: d.total_amount - d.paid_amount,
+          status: isPaid ? 'paid' : isOverdue ? 'overdue' : 'open',
+        };
+      });
+  }, [debts, cards, todayStr]);
+
+  const debtEventsByDay = useMemo(() => {
+    const map: Record<string, typeof debtEvents> = {};
+    debtEvents.forEach(e => {
+      if (!map[e.day]) map[e.day] = [];
+      map[e.day].push(e);
+    });
+    return map;
+  }, [debtEvents]);
 
   const eventsByDay = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
@@ -68,7 +103,6 @@ export default function CalendarView({ events, onAdd, onDelete }: CalendarProps)
   };
 
   const monthLabel = currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  const todayStr = new Date().toISOString().split('T')[0];
 
   return (
     <div className="space-y-6">
@@ -107,6 +141,7 @@ export default function CalendarView({ events, onAdd, onDelete }: CalendarProps)
               const day = i + 1;
               const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
               const dayEvents = eventsByDay[dateStr] || [];
+              const dayDebts = debtEventsByDay[dateStr] || [];
               const isSelected = dateStr === selectedDate;
               const isToday = dateStr === todayStr;
 
@@ -119,10 +154,13 @@ export default function CalendarView({ events, onAdd, onDelete }: CalendarProps)
                   }`}
                 >
                   <span className="text-xs font-bold">{day}</span>
-                  {dayEvents.length > 0 && (
+                  {(dayEvents.length > 0 || dayDebts.length > 0) && (
                     <div className="flex gap-0.5">
-                      {dayEvents.slice(0, 3).map((ev, idx) => (
-                        <span key={idx} className="w-1 h-1 rounded-full" style={{ backgroundColor: isSelected ? '#fff' : ev.color || '#6366F1' }} />
+                      {dayEvents.slice(0, 2).map((ev, idx) => (
+                        <span key={`e-${idx}`} className="w-1 h-1 rounded-full" style={{ backgroundColor: isSelected ? '#fff' : ev.color || '#6366F1' }} />
+                      ))}
+                      {dayDebts.slice(0, 2).map((d, idx) => (
+                        <span key={`d-${idx}`} className="w-1 h-1 rounded-full" style={{ backgroundColor: isSelected ? '#fff' : d.status === 'overdue' ? '#EF4444' : d.status === 'paid' ? '#10B981' : '#F59E0B' }} />
                       ))}
                     </div>
                   )}
@@ -142,12 +180,36 @@ export default function CalendarView({ events, onAdd, onDelete }: CalendarProps)
           </div>
 
           <div className="space-y-3">
-            {selectedDayEvents.length === 0 && (
+            {selectedDayEvents.length === 0 && (debtEventsByDay[selectedDate] || []).length === 0 && (
               <div className="py-12 text-center">
                 <CalendarDays className="w-10 h-10 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
                 <p className="text-[#4e545a] dark:text-slate-700 font-black uppercase text-[10px] tracking-[0.2em]">Nenhum evento neste dia</p>
               </div>
             )}
+
+            {(debtEventsByDay[selectedDate] || []).map(d => {
+              const statusColor = d.status === 'overdue' ? '#EF4444' : d.status === 'paid' ? '#10B981' : '#F59E0B';
+              const statusLabel = d.status === 'overdue' ? 'Vencida' : d.status === 'paid' ? 'Paga' : 'A vencer';
+              return (
+                <button key={d.id} onClick={onGoToDebt} className="w-full text-left p-4 rounded-2xl border border-slate-200 dark:border-white/5 hover:border-indigo-500/30 transition-all" style={{ borderLeftWidth: 4, borderLeftColor: statusColor }}>
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-start gap-2">
+                      {d.isCard ? <CardIcon className="w-4 h-4 mt-0.5 shrink-0" style={{ color: statusColor }} /> : <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: statusColor }} />}
+                      <div>
+                        <p className="font-bold text-sm text-[#212529] dark:text-white">{d.title}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          {d.isCard ? `Cartão · ${d.cardName}` : 'Compromisso'} · {statusLabel}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-black" style={{ color: statusColor }}>
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(d.amount)}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+
             {selectedDayEvents.map(ev => (
               <div key={ev.id} className="p-4 rounded-2xl border border-slate-200 dark:border-white/5 group hover:border-indigo-500/30 transition-all" style={{ borderLeftWidth: 4, borderLeftColor: ev.color || '#6366F1' }}>
                 <div className="flex justify-between items-start gap-2">
