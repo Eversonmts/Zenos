@@ -283,26 +283,46 @@ export const db = {
       const local = getLocalData(userId);
       if (!local) return;
 
-      const upserts: Promise<any>[] = [];
       const withUser = (rows: any[]) => rows.map(r => ({ ...r, user_id: userId }));
 
-      if (local.categories?.length) upserts.push(supabase.from('categories').upsert(withUser(local.categories.filter(c => c.user_id !== null))));
-      if (local.subcategories?.length) upserts.push(supabase.from('subcategories').upsert(withUser(local.subcategories)));
-      if (local.accounts?.length) upserts.push(supabase.from('accounts').upsert(withUser(local.accounts)));
-      if (local.transactions?.length) upserts.push(supabase.from('transactions').upsert(withUser(local.transactions)));
-      if (local.goals?.length) upserts.push(supabase.from('goals').upsert(withUser(local.goals)));
-      if (local.debts?.length) upserts.push(supabase.from('debts').upsert(withUser(local.debts)));
-      if (local.settings?.length) upserts.push(supabase.from('settings').upsert(withUser(local.settings)));
-      if (local.tasks?.length) upserts.push(supabase.from('tasks').upsert(withUser(local.tasks)));
-      if (local.notes?.length) upserts.push(supabase.from('notes').upsert(withUser(local.notes)));
-      if (local.journal?.length) upserts.push(supabase.from('journal').upsert(withUser(local.journal)));
-      if (local.calendar?.length) upserts.push(supabase.from('calendar').upsert(withUser(local.calendar)));
-      if (local.budgets?.length) upserts.push(supabase.from('budgets').upsert(withUser(local.budgets)));
+      const syncTable = async (tableName: string, data: any[]) => {
+        if (!data || data.length === 0) return;
+        try {
+          const { error } = await supabase.from(tableName).upsert(data);
+          if (error) {
+            // Ignorar erros de tabelas que não existem no banco de dados
+            if (error.code === 'PGRST114' || (error.message?.includes('relation') && error.message?.includes('does not exist'))) {
+              console.warn(`Tabela ${tableName} não existe no banco de dados. Sincronização desta tabela ignorada.`);
+              return;
+            }
+            throw error;
+          }
+        } catch (err) {
+          console.error(`Erro ao sincronizar tabela ${tableName}:`, err);
+          throw err;
+        }
+      };
 
-      const results = await Promise.allSettled(upserts);
+      const syncs = [
+        syncTable('categories', withUser(local.categories?.filter(c => c.user_id !== null) || [])),
+        syncTable('subcategories', withUser(local.subcategories || [])),
+        syncTable('accounts', withUser(local.accounts || [])),
+        syncTable('transactions', withUser(local.transactions || [])),
+        syncTable('goals', withUser(local.goals || [])),
+        syncTable('debts', withUser(local.debts || [])),
+        syncTable('settings', withUser(local.settings || [])),
+        syncTable('tasks', withUser(local.tasks || [])),
+        syncTable('notes', withUser(local.notes || [])),
+        syncTable('journal', withUser(local.journal || [])),
+        syncTable('calendar', withUser(local.calendar || [])),
+        syncTable('budgets', withUser(local.budgets || [])),
+        syncTable('cards', withUser(local.cards || []))
+      ];
+
+      const results = await Promise.allSettled(syncs);
       const failed = results.filter(r => r.status === 'rejected');
       if (failed.length) {
-        console.error(`${failed.length} table(s) failed to sync:`, failed);
+        console.error(`${failed.length} tabela(s) falharam na sincronização crítica:`, failed);
         setSyncStatus('error');
       } else {
         setSyncStatus('synced');
@@ -371,10 +391,13 @@ export const db = {
   },
 
   // --- SPECIFIC SAVERS ---
-  saveTransactions: async (userId: string, txs: Transaction[]) => {
+  saveTransactions: async (userId: string, txs: Transaction[], onlyNewOrUpdated?: Transaction | Transaction[]) => {
     saveLocalData(userId, { transactions: txs });
     if (isTestUser(userId)) return;
-    const { error } = await supabase.from('transactions').upsert(txs.map(t => ({ ...t, user_id: userId })));
+    const toUpsert = onlyNewOrUpdated 
+      ? (Array.isArray(onlyNewOrUpdated) ? onlyNewOrUpdated : [onlyNewOrUpdated]) 
+      : txs;
+    const { error } = await supabase.from('transactions').upsert(toUpsert.map(t => ({ ...t, user_id: userId })));
     if (error) { console.error("Failed to save transactions:", error); throw error; }
   },
 
@@ -464,11 +487,12 @@ export const db = {
   },
 
   // Salva o rateio de uma receita entre potes (não duplica a transação, só o detalhamento)
-  saveAllocations: async (userId: string, allocations: TransactionAllocation[]) => {
+  saveAllocations: async (userId: string, allocations: TransactionAllocation[], onlyNewOrUpdated?: TransactionAllocation[]) => {
     saveLocalData(userId, { transaction_allocations: allocations });
     if (isTestUser(userId)) return;
-    if (!allocations.length) return;
-    const { error } = await supabase.from('transaction_allocations').upsert(allocations);
+    const toUpsert = onlyNewOrUpdated || allocations;
+    if (!toUpsert.length) return;
+    const { error } = await supabase.from('transaction_allocations').upsert(toUpsert);
     if (error) { console.error("Failed to save transaction allocations:", error); throw error; }
   },
 
@@ -505,11 +529,25 @@ export const db = {
 async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
   const tables = ['categories', 'subcategories', 'accounts', 'transactions', 'goals', 'debts', 'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards'] as const;
 
-  const results = await Promise.all(tables.map(table =>
-    supabase.from(table).select('*').eq('user_id', userId)
-  ));
+  const fetchPromises = tables.map(async (table) => {
+    try {
+      const { data, error } = await supabase.from(table).select('*').eq('user_id', userId);
+      if (error) {
+        if (error.code === 'PGRST114' || (error.message?.includes('relation') && error.message?.includes('does not exist'))) {
+          console.warn(`Tabela ${table} nao encontrada no Supabase. Retornando dados vazios.`);
+          return [];
+        }
+        throw error;
+      }
+      return data || [];
+    } catch (e) {
+      console.error(`Erro ao carregar tabela ${table} do Supabase:`, e);
+      return [];
+    }
+  });
 
-  const byTable = Object.fromEntries(tables.map((t, i) => [t, results[i].data || []]));
+  const results = await Promise.all(fetchPromises);
+  const byTable = Object.fromEntries(tables.map((t, i) => [t, results[i]]));
 
   // System-wide default categories (user_id IS NULL) are shared by everyone.
   const { data: systemCategories } = await supabase.from('categories').select('*').is('user_id', null);
@@ -519,8 +557,20 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
   const txIds = (byTable.transactions as any[]).map(t => t.id);
   let allocations: any[] = [];
   if (txIds.length > 0) {
-    const { data: allocData } = await supabase.from('transaction_allocations').select('*').in('transaction_id', txIds);
-    allocations = allocData || [];
+    try {
+      const { data: allocData, error: allocError } = await supabase.from('transaction_allocations').select('*').in('transaction_id', txIds);
+      if (allocError) {
+        if (allocError.code === 'PGRST114' || (allocError.message?.includes('relation') && allocError.message?.includes('does not exist'))) {
+          console.warn(`Tabela transaction_allocations nao encontrada no Supabase.`);
+        } else {
+          throw allocError;
+        }
+      } else {
+        allocations = allocData || [];
+      }
+    } catch (e) {
+      console.error(`Erro ao carregar transaction_allocations:`, e);
+    }
   }
 
   return {

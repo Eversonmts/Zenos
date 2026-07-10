@@ -145,8 +145,10 @@ export default function Dashboard({
     debts.forEach(debt => {
       const debtDate = parseLocalDate(debt.due_date);
       if (debtDate.getMonth() === selectedMonth && debtDate.getFullYear() === selectedYear) {
-         paid += debt.paid_amount || 0;
-         due += (debt.total_amount - (debt.paid_amount || 0));
+         const paidVal = Number(debt.paid_amount || 0);
+         const totalVal = Number(debt.total_amount || 0);
+         paid += paidVal;
+         due += (totalVal - paidVal);
       }
     });
     return { due, paid };
@@ -235,7 +237,7 @@ export default function Dashboard({
 
             {/* Middle Section: Balance */}
             <div className="text-center space-y-0">
-              <p className="text-[10px] font-black text-slate-600 dark:text-slate-700 uppercase tracking-widest">Saldo nos Potes</p>
+              <p className="text-[10px] font-black text-slate-600 dark:text-slate-700 uppercase tracking-widest">SALDO</p>
               <div className="flex items-center justify-center gap-3">
                 <h2 className="text-3xl font-black tracking-tighter text-[#212529] dark:text-white">
                   R$ {showBalance ? formatCurrency(currentTotalBalance) : '••••••'}
@@ -280,8 +282,12 @@ export default function Dashboard({
         );
       case 'expenses_by_category':
         return (
-          <div key="expenses_by_category" className="bg-white dark:bg-[#0a0c14] p-6 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-sm">
-            <h3 className="text-[10px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-widest mb-6 flex items-center gap-2">
+          <button 
+            key="expenses_by_category"
+            onClick={() => onNavigate?.('transactions', 'expense')}
+            className="w-full text-left bg-white dark:bg-[#0a0c14] p-6 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-sm hover:border-indigo-500/30 transition-all group block"
+          >
+            <h3 className="text-[10px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-widest mb-6 flex items-center gap-2 group-hover:text-indigo-500 transition-colors">
               <PieChartIcon className="w-4 h-4 text-indigo-500" /> Gastos por Categoria
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
@@ -327,14 +333,19 @@ export default function Dashboard({
                 )}
               </div>
             </div>
-          </div>
+          </button>
         );
       case 'accounts':
         return (
           <div key="accounts" className="space-y-4">
-            <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest px-1 flex items-center gap-3">
-              POTES <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800/50"></div>
-            </h3>
+            <button 
+              onClick={() => onNavigate?.('accounts' as any)}
+              className="w-full text-left focus:outline-none group/title"
+            >
+              <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest px-1 flex items-center gap-3 group-hover/title:text-indigo-500 transition-colors">
+                POTES <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800/50 group-hover/title:bg-indigo-500/30"></div>
+              </h3>
+            </button>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {monthAccounts.map((account, idx) => {
                   const color = COLORS[idx % COLORS.length];
@@ -343,28 +354,23 @@ export default function Dashboard({
                     <button 
                       key={account.id} 
                       onClick={() => setSelectedAccountId(account.id)}
-                      className={`text-left bg-white dark:bg-[#0a0c14] p-4 rounded-2xl border transition-all group shadow-sm dark:shadow-none ${account.displayBalance < 0 ? 'border-rose-500/50 bg-rose-500/5 dark:bg-rose-500/5' : 'border-slate-200 dark:border-white/5 hover:border-indigo-500/40'}`}
+                      className={`text-left bg-white dark:bg-[#0a0c14] p-4 rounded-2xl border transition-all group shadow-sm dark:shadow-none hover:border-indigo-500/40 border-slate-200 dark:border-white/5`}
                     >
                        <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <span className={`text-[10px] font-black uppercase tracking-widest truncate ${account.displayBalance < 0 ? 'text-rose-500' : 'text-[#4e545a] dark:text-slate-600'}`}>{account.name}</span>
-                            <span className={`text-xs font-black tracking-tighter ${account.displayBalance < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-[#212529] dark:text-slate-200'}`}>
-                              R$ {formatCurrency(account.displayBalance)}
+                            <span className="text-[10px] font-black uppercase tracking-widest truncate text-[#4e545a] dark:text-slate-600">{account.name}</span>
+                            <span className={`text-xs font-black tracking-tighter ${account.monthFlow >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {account.monthFlow >= 0 ? '+' : ''}R$ {formatCurrency(account.monthFlow)}
                             </span>
                           </div>
                           <span className="text-[8px] font-black text-slate-400 uppercase ml-2">{account.percentage}%</span>
-                       </div>
-                       <div className="flex justify-between items-center mb-1.5 px-0.5">
-                          <span className={`text-[7px] font-black uppercase tracking-widest ${account.monthFlow >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            Fluxo Mês: {account.monthFlow >= 0 ? '+' : ''} R$ {formatCurrency(account.monthFlow)}
-                          </span>
                        </div>
                        <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                           <div 
                             className="h-full transition-all duration-700" 
                             style={{ 
                               width: `${progress}%`,
-                              backgroundColor: account.displayBalance < 0 ? '#f43f5e' : color
+                              backgroundColor: account.monthFlow < 0 ? '#f43f5e' : color
                             }}
                           ></div>
                        </div>
@@ -417,9 +423,14 @@ export default function Dashboard({
       case 'goals':
         return (
           <div key="goals" className="space-y-4">
-            <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest px-1 flex items-center gap-3">
-              METAS <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800/50"></div>
-            </h3>
+            <button 
+              onClick={() => onNavigate?.('goals')}
+              className="w-full text-left focus:outline-none group/title"
+            >
+              <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest px-1 flex items-center gap-3 group-hover/title:text-indigo-500 transition-colors">
+                METAS <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800/50 group-hover/title:bg-indigo-500/30"></div>
+              </h3>
+            </button>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {goals && goals.slice(0, 2).map(goal => {
                 const progress = (goal.current_amount / goal.target_amount) * 100;
@@ -459,12 +470,21 @@ export default function Dashboard({
       case 'activities':
         return (
           <div key="activities" className="space-y-3">
-            <h3 className="text-[9px] font-black text-[#4e545a] dark:text-slate-600 uppercase tracking-widest px-1 flex items-center gap-3">
-              ATIVIDADES <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800/50"></div>
-            </h3>
+            <button 
+              onClick={() => onNavigate?.('transactions')}
+              className="w-full text-left focus:outline-none group/title"
+            >
+              <h3 className="text-[9px] font-black text-[#4e545a] dark:text-slate-600 uppercase tracking-widest px-1 flex items-center gap-3 group-hover/title:text-indigo-500 transition-colors">
+                ATIVIDADES <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800/50 group-hover/title:bg-indigo-500/30"></div>
+              </h3>
+            </button>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {filteredTransactions.slice(0, 4).map(t => (
-                <div key={t.id} className="bg-white dark:bg-[#0a0c14] p-3.5 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors shadow-sm dark:shadow-none">
+                <button 
+                  key={t.id} 
+                  onClick={() => onNavigate?.('transactions')}
+                  className="w-full text-left bg-white dark:bg-[#0a0c14] p-3.5 rounded-2xl border border-slate-200 dark:border-white/5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-900 hover:border-indigo-500/30 transition-all shadow-sm dark:shadow-none active:scale-[0.99]"
+                >
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-xl ${t.type === 'income' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
                       {t.type === 'income' ? <Plus className="w-3.5 h-3.5" /> : <Activity className="w-3.5 h-3.5" />}
@@ -477,7 +497,7 @@ export default function Dashboard({
                   <p className={`text-sm font-black ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-[#212529] dark:text-slate-300'}`}>
                     R$ {formatCurrency(t.amount)}
                   </p>
-                </div>
+                </button>
               ))}
               {filteredTransactions.length === 0 && (
                 <div className="col-span-full py-12 text-center text-[#4e545a] dark:text-slate-800 text-[10px] font-black uppercase italic tracking-widest">VAZIO</div>
@@ -489,8 +509,12 @@ export default function Dashboard({
         return null; // Feature em revisão
       case 'cash_flow_chart':
         return (
-          <div key="cash_flow_chart" className="bg-white dark:bg-[#0a0c14] p-6 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-sm">
-            <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest mb-6 flex items-center gap-2">
+          <button 
+            key="cash_flow_chart"
+            onClick={() => onNavigate?.('transactions')}
+            className="w-full text-left bg-white dark:bg-[#0a0c14] p-6 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-sm hover:border-indigo-500/30 transition-all group block"
+          >
+            <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest mb-6 flex items-center gap-2 group-hover:text-indigo-500 transition-colors">
               <TrendingUp className="w-4 h-4 text-indigo-500" /> Fluxo de Caixa Mensal
             </h3>
             <div className="h-[300px] w-full">
@@ -526,7 +550,7 @@ export default function Dashboard({
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </button>
         );
       default:
         return null;

@@ -472,7 +472,9 @@ export default function App() {
       if(!activeUser) return;
       setter((prev: any) => {
           const newData = typeof updateFn === 'function' ? updateFn(prev) : updateFn;
-          saver(activeUser.id, newData).catch(err => console.error("Save failed", err));
+          saver(activeUser.id, newData).catch(err => {
+              console.warn("Save failed in Supabase (saved locally):", err);
+          });
           return newData;
       });
   };
@@ -527,8 +529,6 @@ export default function App() {
 
     // Atualiza AMBOS os estados (transações + alocações) no mesmo ciclo de render,
     // para que o useMemo do totalBalance recalcule com os dois dados atualizados.
-    // Antes, setTransactionAllocations ficava depois do await e o saldo total
-    // era recalculado só com as transações novas mas as allocations antigas → 0.
     setTransactions(newTxs);
     if (newAllocations.length > 0) {
       setTransactionAllocations(updatedAllocations);
@@ -538,15 +538,15 @@ export default function App() {
     try {
       // As alocações têm uma chave estrangeira apontando pra transação - por isso
       // é essencial esperar a transação terminar de salvar antes de gravar o rateio.
-      await db.saveTransactions(activeUser.id, newTxs);
+      // Otimizado: enviamos apenas as novas entradas e novas alocações para o Supabase
+      await db.saveTransactions(activeUser.id, newTxs, newEntries);
 
       if (newAllocations.length > 0) {
-        await db.saveAllocations(activeUser.id, updatedAllocations);
+        await db.saveAllocations(activeUser.id, updatedAllocations, newAllocations);
       }
     } catch (err) {
-      console.error('Failed to save transaction:', err);
-      showToast('Erro ao salvar o lançamento. Tente novamente.', 'error');
-      return;
+      console.warn('Failed to save transaction to Supabase (saving offline/local instead):', err);
+      showToast('Lançamento salvo localmente (modo offline)', 'info');
     }
 
     const label = Array.isArray(t) ? 'Lançamentos registrados!' : `${(t as Transaction).type === 'income' ? 'Entrada' : 'Despesa'} registrada!`;
