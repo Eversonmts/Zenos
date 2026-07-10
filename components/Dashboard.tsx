@@ -26,11 +26,12 @@ const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981'
 const DEFAULT_LAYOUT: DashboardLayoutItem[] = [
   { id: 'summary_widgets', visible: true, order: 0, label: 'Resumo de Saldos' },
   { id: 'expenses_by_category', visible: true, order: 1, label: 'Gastos por Categoria' },
-  { id: 'compromissos', visible: true, order: 2, label: 'Compromissos do Mês' },
-  { id: 'accounts', visible: true, order: 3, label: 'Potes' },
-  { id: 'goals', visible: true, order: 4, label: 'Metas' },
-  { id: 'activities', visible: true, order: 5, label: 'Atividades Recentes' },
-  { id: 'cash_flow_chart', visible: true, order: 6, label: 'Fluxo de Caixa' },
+  { id: 'budgets', visible: true, order: 2, label: 'Orçamentos' },
+  { id: 'compromissos', visible: true, order: 3, label: 'Compromissos do Mês' },
+  { id: 'accounts', visible: true, order: 4, label: 'Potes' },
+  { id: 'goals', visible: true, order: 5, label: 'Metas' },
+  { id: 'activities', visible: true, order: 6, label: 'Atividades Recentes' },
+  { id: 'cash_flow_chart', visible: true, order: 7, label: 'Fluxo de Caixa' },
 ];
 
 export default function Dashboard({ 
@@ -485,8 +486,47 @@ export default function Dashboard({
             </div>
           </div>
         );
-      case 'budgets':
-        return null; // Feature em revisão
+      case 'budgets': {
+        if (!budgets || budgets.length === 0) return null;
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const topBudgets = budgets.slice(0, 3);
+
+        return (
+          <div key="budgets" onClick={() => onNavigate && onNavigate('budgets' as any)} className="cursor-pointer bg-white dark:bg-[#0a0c14] p-6 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-sm hover:border-indigo-500/30 transition-all">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest flex items-center gap-2">
+                <PieChartIcon className="w-4 h-4 text-indigo-500" /> Orçamentos
+              </h3>
+              <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-700" />
+            </div>
+            <div className="space-y-4">
+              {topBudgets.map(b => {
+                const spent = transactions
+                  .filter(t => t.type === 'expense' && t.category_id === b.category_id && new Date(t.date_at) >= startOfMonth)
+                  .reduce((sum, t) => sum + Number(t.amount), 0);
+                const limitAmount = Number(b.limit_amount);
+                const percent = Math.min((spent / limitAmount) * 100, 100);
+                const isOver = spent > limitAmount;
+                return (
+                  <div key={b.id}>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-xs font-bold text-[#212529] dark:text-white">{b.category_name}</span>
+                      <span className={`text-[10px] font-black ${isOver ? 'text-rose-500' : 'text-slate-400'}`}>{percent.toFixed(0)}%</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${isOver ? 'bg-rose-500' : percent > 80 ? 'bg-amber-500' : 'bg-indigo-500'}`} style={{ width: `${percent}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+              {budgets.length > 3 && (
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest text-center pt-1">+{budgets.length - 3} outro(s)</p>
+              )}
+            </div>
+          </div>
+        );
+      }
       case 'cash_flow_chart':
         return (
           <div key="cash_flow_chart" className="bg-white dark:bg-[#0a0c14] p-6 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-sm">
