@@ -1205,11 +1205,14 @@ export default function App() {
             {view === 'calendar' && (
               <CalendarView 
                 events={events}
+                debts={debts}
+                cards={cards}
                 onAdd={(e) => updateAndSave((prev: CalendarEvent[]) => [...prev, e], setEvents, db.saveCalendar)}
                 onDelete={(id) => {
                   db.deleteRow('calendar', id).catch(err => console.error(err));
                   updateAndSave((prev: CalendarEvent[]) => prev.filter(e => e.id !== id), setEvents, db.saveCalendar);
                 }}
+                onGoToDebt={() => setView('compromissos')}
               />
             )}
             {view === 'analytics' && (
