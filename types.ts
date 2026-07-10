@@ -1,5 +1,8 @@
 
 export type TransactionType = 'income' | 'expense';
+// Categorias também podem existir só pra classificar Dívidas/Cartão (ex: "Empréstimo",
+// "Financiamento"), sem precisar ser do tipo receita/despesa de uma transação normal.
+export type CategoryType = TransactionType | 'debt';
 export type AccountType = 'cash' | 'bank' | 'credit_card' | 'investment';
 export type GoalStatus = 'pending' | 'completed' | 'canceled';
 export type DebtStatus = 'active' | 'paid' | 'overdue';
@@ -70,7 +73,7 @@ export interface Category {
   id: string;
   user_id: string | null; // NULL para categorias do sistema
   name: string;
-  type: TransactionType;
+  type: CategoryType;
   color: string | null;
   icon: string | null;
   is_default: boolean;
@@ -153,6 +156,8 @@ export interface Debt {
   installments?: number; // added
   card_id?: string | null; // preenchido quando a dívida é uma parcela de cartão de crédito
   installment_number?: number | null; // qual parcela (ex: 2 de 6)
+  category_id?: string | null;
+  subcategory_id?: string | null;
   created_at: string;
   updated_at: string;
 }

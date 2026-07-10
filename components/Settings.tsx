@@ -39,7 +39,7 @@ export default function Settings({
   const [activeTab, setActiveTab] = useState<'categories' | 'appearance' | 'subscription' | 'profile' | 'payments' | 'database' | 'security' | 'system'>(initialTab as any);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [newCatName, setNewCatName] = useState('');
-  const [newCatType, setNewCatType] = useState<'income' | 'expense'>('expense');
+  const [newCatType, setNewCatType] = useState<'income' | 'expense' | 'debt'>('expense');
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [expandedCatId, setExpandedCatId] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState('');
@@ -114,12 +114,12 @@ export default function Settings({
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [editSubName, setEditSubName] = useState('');
   const [editCatName, setEditCatName] = useState('');
-  const [editCatType, setEditCatType] = useState<'income' | 'expense'>('expense');
+  const [editCatType, setEditCatType] = useState<'income' | 'expense' | 'debt'>('expense');
 
   const startEditCategory = (cat: Category) => {
     setEditingCatId(cat.id);
     setEditCatName(cat.name);
-    setEditCatType(cat.type as 'income' | 'expense');
+    setEditCatType(cat.type as 'income' | 'expense' | 'debt');
   };
 
   const handleSaveEditCategory = (id: string) => {
@@ -553,6 +553,7 @@ export default function Settings({
                       >
                         <option value="expense">Despesa</option>
                         <option value="income">Receita</option>
+                        <option value="debt">Dívida / Cartão</option>
                       </select>
                       <button 
                         onClick={handleAddCategory}
@@ -586,6 +587,7 @@ export default function Settings({
                             >
                               <option value="expense">Despesa</option>
                               <option value="income">Receita</option>
+                              <option value="debt">Dívida / Cartão</option>
                             </select>
                             <div className="flex gap-2">
                               <button onClick={() => handleSaveEditCategory(cat.id)} className="p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500"><Check className="w-4 h-4" /></button>
@@ -598,9 +600,9 @@ export default function Settings({
                              className="flex items-center gap-3 flex-1 text-left"
                              onClick={() => setExpandedCatId(isExpanded ? null : cat.id)}
                            >
-                              <span className={`w-2 h-2 rounded-full ${cat.type === 'income' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+                              <span className={`w-2 h-2 rounded-full ${cat.type === 'income' ? 'bg-emerald-400' : cat.type === 'debt' ? 'bg-amber-400' : 'bg-rose-400'}`}></span>
                               <h4 className="font-bold text-slate-700 dark:text-slate-200">{cat.name}</h4>
-                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-600">{cat.type === 'income' ? 'Receita' : 'Despesa'}</span>
+                              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-600">{cat.type === 'income' ? 'Receita' : cat.type === 'debt' ? 'Dívida/Cartão' : 'Despesa'}</span>
                               {catSubs.length > 0 && (
                                 <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-full">{catSubs.length} sub</span>
                               )}

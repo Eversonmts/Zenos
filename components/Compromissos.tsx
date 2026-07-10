@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Debt, Account, Transaction } from '../types';
+import { Debt, Account, Transaction, Category, Subcategory } from '../types';
 import { Plus, CheckCircle2, AlertTriangle, Calendar, ChevronLeft, ChevronRight, DollarSign, X, Edit2, Clock } from 'lucide-react';
 import { parseLocalDate, formatCurrency, formatDisplayDate, formatDateObject } from '../lib/utils';
 
@@ -19,6 +19,8 @@ interface CompromissosProps {
   debts: Debt[];
   accounts: Account[];
   transactions?: Transaction[];
+  categories: Category[];
+  subcategories: Subcategory[];
   onAdd: (d: Debt | Debt[]) => void;
   onUpdate: (d: Debt) => void;
   onPay: (d: Debt, amount: number, accountId: string, date: string) => void;
@@ -38,7 +40,7 @@ interface InstallmentItem {
   originalDebtId: string;
 }
 
-export default function Compromissos({ activeUserId, debts, accounts, transactions = [], onAdd, onUpdate, onPay, onEdit, onDelete }: CompromissosProps) {
+export default function Compromissos({ activeUserId, debts, accounts, transactions = [], categories, subcategories, onAdd, onUpdate, onPay, onEdit, onDelete }: CompromissosProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState<Debt | null>(null);
   const [inputType, setInputType] = useState<'total' | 'installment'>('total');
@@ -61,9 +63,16 @@ export default function Compromissos({ activeUserId, debts, accounts, transactio
     due_date: string;
     paid_amount?: number;
     status?: 'active' | 'paid' | 'overdue';
+    category_id?: string;
+    subcategory_id?: string;
   }>({
     description: '', valueInput: 0, due_date: new Date().toISOString().split('T')[0]
   });
+
+  // Só categorias marcadas como "Dívida/Cartão" aparecem aqui - são separadas
+  // das categorias normais de receita/despesa.
+  const debtCategories = categories.filter(c => c.type === 'debt');
+  const availableSubcategories = subcategories.filter(s => s.category_id === newDebt.category_id);
 
   const totalDebt = debts.filter(d => d.status !== 'paid').reduce((acc, d) => acc + (d.total_amount - d.paid_amount), 0);
   // Subtotal só das parcelas de cartão de crédito (dado informativo - já está
@@ -171,7 +180,9 @@ export default function Compromissos({ activeUserId, debts, accounts, transactio
       valueInput: debt.total_amount,
       due_date: debt.due_date || new Date().toISOString().split('T')[0],
       paid_amount: debt.paid_amount,
-      status: debt.status
+      status: debt.status,
+      category_id: debt.category_id || '',
+      subcategory_id: debt.subcategory_id || ''
     });
     setShowAddModal(true);
   };
@@ -201,6 +212,8 @@ export default function Compromissos({ activeUserId, debts, accounts, transactio
       paid_amount: isEditing ? (newDebt.paid_amount ?? 0) : 0, 
       due_date: newDebt.due_date,
       status: newDebt.status || 'active',
+      category_id: newDebt.category_id || null,
+      subcategory_id: newDebt.subcategory_id || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -531,6 +544,23 @@ export default function Compromissos({ activeUserId, debts, accounts, transactio
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-widest ml-1">Descrição</label>
                 <input required className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={newDebt.description} onChange={e => setNewDebt({...newDebt, description: e.target.value})} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-widest ml-1">Categoria</label>
+                  <select className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={newDebt.category_id || ''} onChange={e => setNewDebt({...newDebt, category_id: e.target.value, subcategory_id: ''})}>
+                    <option value="">Sem categoria</option>
+                    {debtCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-widest ml-1">Subcategoria</label>
+                  <select disabled={!newDebt.category_id} className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50" value={newDebt.subcategory_id || ''} onChange={e => setNewDebt({...newDebt, subcategory_id: e.target.value})}>
+                    <option value="">Nenhuma</option>
+                    {availableSubcategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div className="space-y-2">

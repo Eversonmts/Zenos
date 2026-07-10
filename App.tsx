@@ -943,6 +943,8 @@ export default function App() {
       {showCardExpenseModal && activeUser && (
         <CardExpenseModal
           cards={cards}
+          categories={categories}
+          subcategories={subcategories}
           userId={activeUser.id}
           onClose={() => setShowCardExpenseModal(false)}
           onSubmit={(newDebts) => {
@@ -1124,6 +1126,8 @@ export default function App() {
                 debts={debts} 
                 accounts={processedAccounts} 
                 transactions={transactions}
+                categories={categories}
+                subcategories={subcategories}
                 onAdd={(d) => updateAndSave((prev: Debt[]) => Array.isArray(d) ? [...prev, ...d] : [...prev, d], setDebts, db.saveDebts)}
                 onUpdate={(d) => handleUpdateDebts([d])}
                 onEdit={(d) => handleUpdateDebts([d])}
