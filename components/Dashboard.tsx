@@ -390,35 +390,35 @@ export default function Dashboard({
           <button 
             key="compromissos"
             onClick={() => onNavigate?.('compromissos')}
-            className="w-full text-left bg-slate-50 dark:bg-slate-900/40 p-5 rounded-3xl border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-slate-900/60 transition-all group"
+            className="w-full text-left bg-slate-50 dark:bg-slate-900/40 p-5 rounded-3xl border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-slate-900/60 transition-all group overflow-hidden"
           >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-[9px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest flex items-center gap-2">
+            <div className="flex justify-between items-center mb-4 min-w-0">
+              <h3 className="text-[9px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest flex items-center gap-2 truncate">
                  Compromissos do Mês
               </h3>
-              <TrendingUp className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+              <TrendingUp className="w-4 h-4 flex-shrink-0 text-slate-400 group-hover:text-indigo-500 transition-colors" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="bg-indigo-500/10 rounded-[1.5rem] p-3 border border-indigo-500/20">
-                   <div className="flex items-center gap-2 mb-1">
-                      <Wallet className="w-3 h-3 text-indigo-500" />
-                      <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">Total do Mês</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                <div className="min-w-0 bg-indigo-500/10 rounded-2xl p-3 border border-indigo-500/20">
+                   <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                      <Wallet className="w-3 h-3 flex-shrink-0 text-indigo-500" />
+                      <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest truncate">Total do Mês</span>
                    </div>
-                   <p className="text-lg font-black text-indigo-600 dark:text-indigo-400">R$ {formatCurrency(debtSummary.due + debtSummary.paid)}</p>
+                   <p className="text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-400 truncate">R$ {formatCurrency(debtSummary.due + debtSummary.paid)}</p>
                 </div>
-                <div className="bg-rose-500/10 rounded-[1.5rem] p-3 border border-rose-500/20">
-                   <div className="flex items-center gap-2 mb-1">
-                      <AlertTriangle className="w-3 h-3 text-rose-500" />
-                      <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest">Valor Necessário</span>
+                <div className="min-w-0 bg-rose-500/10 rounded-2xl p-3 border border-rose-500/20">
+                   <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                      <AlertTriangle className="w-3 h-3 flex-shrink-0 text-rose-500" />
+                      <span className="text-[8px] font-black text-rose-500 uppercase tracking-widest truncate">Necessário</span>
                    </div>
-                   <p className="text-lg font-black text-rose-500 dark:text-rose-400">R$ {formatCurrency(debtSummary.due)}</p>
+                   <p className="text-base sm:text-lg font-black text-rose-500 dark:text-rose-400 truncate">R$ {formatCurrency(debtSummary.due)}</p>
                 </div>
-                <div className="bg-emerald-500/10 rounded-[1.5rem] p-3 border border-emerald-500/20">
-                   <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                      <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Pago</span>
+                <div className="min-w-0 bg-emerald-500/10 rounded-2xl p-3 border border-emerald-500/20">
+                   <div className="flex items-center gap-1.5 mb-1 min-w-0">
+                      <CheckCircle2 className="w-3 h-3 flex-shrink-0 text-emerald-500" />
+                      <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest truncate">Pago</span>
                    </div>
-                   <p className="text-lg font-black text-emerald-500 dark:text-emerald-400">R$ {formatCurrency(debtSummary.paid)}</p>
+                   <p className="text-base sm:text-lg font-black text-emerald-500 dark:text-emerald-400 truncate">R$ {formatCurrency(debtSummary.paid)}</p>
                 </div>
             </div>
           </button>
