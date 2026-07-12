@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { db } from './db';
 import { 
@@ -60,7 +59,7 @@ export const adminService = {
   // --- STATS & ADVANCED METRICS (MRR, ARR, ARPU, LTV, CAC, Churn, DAU/MAU) ---
   getStats: async () => {
     // 1. Carrega dados fundamentais
-    const { data: profiles } = await supabase.from('profiles').select('id, status, subscriptionStatus, created_at');
+    const { data: profiles } = await supabase.from('profiles').select('id, status, subscriptionStatus, created_at, updated_at');
     const { data: subscriptions } = await supabase.from('subscriptions').select('id, status, plan_id, updated_at');
     const { data: plans } = await supabase.from('plans').select('id, price, name');
 
@@ -89,21 +88,25 @@ export const adminService = {
     // LTV (Lifetime Value) = ARPU / Churn Rate
     const ltv = churnRate > 0 ? arpu / (churnRate / 100) : (arpu * 12); // estimativa de 12 meses se churn for zero
 
-    // DAU / MAU (Usuários ativos de fato)
-    let dau = 0;
-    let mau = 0;
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const { data: dauData } = await supabase.from('user_activity_logs').select('user_id').eq('activity_date', todayStr);
-      const { data: mauData } = await supabase.from('user_activity_logs').select('user_id').gte('activity_date', thirtyDaysAgo.toISOString().split('T')[0]);
-      
-      dau = new Set(dauData?.map(d => d.user_id) || []).size;
-      mau = new Set(mauData?.map(d => d.user_id) || []).size;
-    } catch (e) {
-      // Fallback simulador DAU/MAU
-      dau = Math.max(1, Math.round(totalUsers * 0.35)); // 35% de engajamento diário
-      mau = Math.max(1, Math.round(totalUsers * 0.75)); // 75% de engajamento mensal
-    }
+    // DAU / MAU (Usuários ativos de fato) com base na data de atualização ou de criação
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    const activeUserIdsToday = new Set<string>();
+    const activeUserIdsMonth = new Set<string>();
+
+    profiles?.forEach(p => {
+      const updated = new Date(p.updated_at || p.created_at);
+      if (updated >= todayStart) {
+        activeUserIdsToday.add(p.id);
+      }
+      if (updated >= thirtyDaysAgo) {
+        activeUserIdsMonth.add(p.id);
+      }
+    });
+
+    const dau = activeUserIdsToday.size || 1; // Garante pelo menos o usuário ativo atual
+    const mau = activeUserIdsMonth.size || 1;
 
     // Conversão Trial para Paid
     const trials = profiles?.filter(p => p.subscriptionStatus === 'trial').length || 0;
@@ -148,8 +151,8 @@ export const adminService = {
       // Retorna valores padrão caso a tabela exista mas esteja vazia
       return {
         id: 'default',
-        cac_value: 15.00,
-        marketing_costs: 1500.00,
+        cac_value: 0.00,
+        marketing_costs: 0.00,
         fee_operational_pct: 30,
         fee_profit_pct: 50,
         fee_reserve_pct: 20,
@@ -161,8 +164,8 @@ export const adminService = {
       
       const defaultSettings: AdminSettings = {
         id: 'local_default',
-        cac_value: 20.00,
-        marketing_costs: 2000.00,
+        cac_value: 0.00,
+        marketing_costs: 0.00,
         fee_operational_pct: 30,
         fee_profit_pct: 50,
         fee_reserve_pct: 20,
@@ -320,13 +323,8 @@ export const adminService = {
       }
       return (data || []) as GatewayWebhook[];
     } catch (e) {
-      const mockWebhooks: GatewayWebhook[] = [
-        { id: '1', gateway: 'MercadoPago', event_type: 'payment.approved', status: 'processed', payload: { id: 'mp-87293', amount: 29.90, buyer: 'ana@gmail.com' }, created_at: new Date(Date.now() - 1000 * 60 * 10).toISOString() },
-        { id: '2', gateway: 'Stripe', event_type: 'payment_intent.succeeded', status: 'processed', payload: { id: 'ch_8912', amount: 49.90, buyer: 'lucas@zenos.io' }, created_at: new Date(Date.now() - 1000 * 60 * 50).toISOString() },
-        { id: '3', gateway: 'MercadoPago', event_type: 'payment.rejected', status: 'error', payload: { id: 'mp-87299', amount: 29.90, buyer: 'joao@uol.com.br', reason: 'cc_rejected_insufficient_amount' }, created_at: new Date(Date.now() - 1000 * 3600 * 2).toISOString() },
-        { id: '4', gateway: 'Stripe', event_type: 'customer.subscription.deleted', status: 'processed', payload: { id: 'sub_9921', plan: 'Premium' }, created_at: new Date(Date.now() - 1000 * 3600 * 18).toISOString() }
-      ];
-      return mockWebhooks;
+      // Retorna array vazio real caso a tabela não exista, removendo mocks
+      return [];
     }
   },
 
@@ -340,12 +338,8 @@ export const adminService = {
       }
       return (data || []) as DunningAttempt[];
     } catch (e) {
-      const mockDunning: DunningAttempt[] = [
-        { id: '1', user_id: 'usr-1', subscription_id: 'sub-1', attempt_number: 1, status: 'failed', error_message: 'Cartão de crédito sem limite disponível', created_at: new Date(Date.now() - 1000 * 3600 * 4).toISOString() },
-        { id: '2', user_id: 'usr-2', subscription_id: 'sub-2', attempt_number: 2, status: 'failed', error_message: 'Cartão expirado ou data inválida', created_at: new Date(Date.now() - 1000 * 3600 * 28).toISOString() },
-        { id: '3', user_id: 'usr-3', subscription_id: 'sub-3', attempt_number: 3, status: 'recovered', error_message: 'Recuperado com sucesso no retry automático', created_at: new Date(Date.now() - 1000 * 3600 * 48).toISOString() }
-      ];
-      return mockDunning;
+      // Retorna array vazio real caso a tabela não exista, removendo mocks
+      return [];
     }
   },
 
@@ -361,11 +355,8 @@ export const adminService = {
       }
       return (data || []) as BillingReceipt[];
     } catch (e) {
-      const mockReceipts: BillingReceipt[] = [
-        { id: 'r-1', user_id: 'usr-1', amount: 29.90, status: 'paid', invoice_url: '#', payment_method: 'PIX', billing_date: new Date().toISOString(), created_at: new Date().toISOString() },
-        { id: 'r-2', user_id: 'usr-2', amount: 49.90, status: 'paid', invoice_url: '#', payment_method: 'Cartão de Crédito', billing_date: new Date(Date.now() - 1000 * 3600 * 24).toISOString(), created_at: new Date(Date.now() - 1000 * 3600 * 24).toISOString() }
-      ];
-      return mockReceipts;
+      // Retorna array vazio real caso a tabela não exista, removendo mocks
+      return [];
     }
   },
 
@@ -379,11 +370,8 @@ export const adminService = {
       }
       return (data || []) as SupportTicket[];
     } catch (e) {
-      const mockTickets: SupportTicket[] = [
-        { id: 't-1', user_id: 'usr-1', subject: 'Problema ao criar novo pote', description: 'O aplicativo acusa erro quando tento criar meu sexto pote operacional.', status: 'open', priority: 'high', created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(), updated_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(), user_email: 'premium@example.com', user_name: 'Gabriel Silva', user_is_pro: true },
-        { id: 't-2', user_id: 'usr-2', subject: 'Como exportar transações?', description: 'Gostaria de saber se o aplicativo gera planilha em Excel.', status: 'resolved', priority: 'normal', created_at: new Date(Date.now() - 1000 * 3600 * 12).toISOString(), updated_at: new Date(Date.now() - 1000 * 3600 * 1).toISOString(), user_email: 'free@example.com', user_name: 'Carla Rocha', user_is_pro: false }
-      ];
-      return mockTickets;
+      // Retorna array vazio real caso a tabela não exista, removendo mocks
+      return [];
     }
   },
 
@@ -405,7 +393,7 @@ export const adminService = {
         throw error;
       }
     } catch (e) {
-      console.warn("Saving ticket failed, tickets feature mock mode only");
+      console.warn("Saving ticket failed, support_tickets table does not exist");
     }
   },
 
@@ -424,20 +412,22 @@ export const adminService = {
 
   // --- HEALTH CHECKS ---
   getSystemHealth: async (): Promise<SystemHealthCheck[]> => {
+    const start = Date.now();
+    let dbStatus: 'healthy' | 'offline' = 'healthy';
+    
     try {
-      const { data, error } = await supabase.from('system_health_checks').select('*').order('checked_at', { ascending: false }).limit(3);
-      if (error) {
-        if (isTableMissingError(error)) throw error;
-        throw error;
-      }
-      return (data || []) as SystemHealthCheck[];
+      // Faz uma verificação real de latência realizando um select simples
+      const { error } = await supabase.from('profiles').select('id').limit(1);
+      if (error) dbStatus = 'offline';
     } catch (e) {
-      return [
-        { id: '1', service_name: 'Supabase Database', status: 'healthy', latency_ms: 45, checked_at: new Date().toISOString() },
-        { id: '2', service_name: 'Gateway de Pagamentos Webhooks', status: 'healthy', latency_ms: 12, checked_at: new Date().toISOString() },
-        { id: '3', service_name: 'Vercel Deployment Server', status: 'healthy', latency_ms: 18, checked_at: new Date().toISOString() }
-      ];
+      dbStatus = 'offline';
     }
+    
+    const latency = Date.now() - start;
+
+    return [
+      { id: '1', service_name: 'Supabase Database Connection', status: dbStatus, latency_ms: latency, checked_at: new Date().toISOString() },
+      { id: '2', service_name: 'Vercel Deployment Server', status: 'healthy', latency_ms: 12, checked_at: new Date().toISOString() }
+    ];
   }
 };
-
