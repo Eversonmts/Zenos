@@ -1262,8 +1262,17 @@ export default function App() {
                 accounts={processedAccounts}
                 onAdd={handleAddTransaction} 
                 onDelete={(id) => {
-                  db.deleteRow('transactions', id).catch(err => console.error(err));
+                  const removed = transactions.find(t => t.id === id);
                   updateAndSave((prev: Transaction[]) => prev.filter(t => t.id !== id), setTransactions, db.saveTransactions);
+                  db.deleteRow('transactions', id).catch(err => {
+                    console.error(err);
+                    // Delete failed server-side: put it back so the UI never
+                    // shows something as gone when it still exists in the DB.
+                    if (removed) {
+                      updateAndSave((prev: Transaction[]) => prev.some(t => t.id === id) ? prev : [...prev, removed], setTransactions, db.saveTransactions);
+                    }
+                    alert('Não foi possível excluir o lançamento. Verifique sua conexão e tente novamente.');
+                  });
                 }}
                 onEdit={(updated) => updateAndSave((prev: Transaction[]) => prev.map(t => t.id === updated.id ? updated : t), setTransactions, db.saveTransactions)}
                 onAddCategory={handleAddCategory}
