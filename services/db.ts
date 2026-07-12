@@ -26,6 +26,43 @@ const setSyncStatus = (status: SyncStatus) => {
   syncListeners.forEach(cb => cb(status));
 };
 
+// --- REALTIME MULTI-DEVICE SYNC ---
+// Subscribes to every user-owned table via Supabase Realtime (Postgres CDC).
+// Any insert/update/delete made from ANY device fires `onChange` on ALL
+// other connected devices within ~1s, so the caller can refresh its state
+// immediately instead of waiting for the next manual/background refresh.
+const REALTIME_TABLES = [
+  'accounts', 'transactions', 'categories', 'subcategories', 'goals', 'debts',
+  'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards',
+  'transaction_allocations'
+] as const;
+
+export const subscribeRealtime = (userId: string, onChange: () => void) => {
+  if (!userId || isTestUser(userId)) {
+    return () => {};
+  }
+
+  const channel = supabase.channel(`user-sync-${userId}`);
+
+  REALTIME_TABLES.forEach(table => {
+    // transaction_allocations has no user_id column directly, so it isn't
+    // filterable server-side; we still listen (unfiltered) and just trigger
+    // a refresh, which is cheap since it's debounced by the caller.
+    const filter = table === 'transaction_allocations' ? undefined : `user_id=eq.${userId}`;
+    channel.on(
+      'postgres_changes' as any,
+      { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) },
+      () => onChange()
+    );
+  });
+
+  channel.subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+};
+
 const LOCAL_STORAGE_KEY = 'zenos_finance_data_';
 
 // Local cache: used as an instant-load layer and as offline support for the
@@ -214,7 +251,7 @@ export const db = {
   },
 
   // --- FINANCIAL DATA ---
-  getFinancialData: async (userId: string): Promise<FinancialData> => {
+  getFinancialData: async (userId: string, forceRefresh: boolean = false): Promise<FinancialData> => {
     if (isTestUser(userId)) {
       const cached = await testDb.getData(userId);
       if (cached) return cached;
@@ -234,9 +271,12 @@ export const db = {
       };
     }
 
-    // Serve the local cache instantly, then refresh from Supabase in the background.
-    const localData = getLocalData(userId);
+    // forceRefresh=true (used after a realtime change notification from
+    // another device) skips the local cache entirely - we want the actual
+    // current state, not what was cached before the remote change arrived.
+    const localData = forceRefresh ? null : getLocalData(userId);
     if (localData) {
+      // Serve the local cache instantly, then refresh from Supabase in the background.
       setTimeout(() => db.refreshFromSupabase(userId), 200);
       return localData;
     }
@@ -250,7 +290,10 @@ export const db = {
     } catch (error) {
       console.error("Failed to load data from Supabase:", error);
       setSyncStatus('error');
-      return {
+      // On a forced (realtime-triggered) refresh, prefer stale local data
+      // over wiping the screen with empty data if the network hiccups.
+      const fallback = forceRefresh ? getLocalData(userId) : null;
+      return fallback || {
         profiles: [], plans: [], subscriptions: [], categories: DEFAULT_CATEGORIES,
         subcategories: [], transaction_allocations: [], cards: [],
         accounts: INITIAL_ACCOUNTS, transactions: [], goals: [], debts: [],

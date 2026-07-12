@@ -30,7 +30,7 @@ import ZenosIAScannerModal from './components/ZenosIAScannerModal';
 import ShoppingList from './components/ShoppingList';
 import { analyzeReceipt, analyzeAudioCommand } from './services/gemini';
 import { initializeAuth, logout as authLogout, updateProfileData } from './services/auth';
-import { db, onSyncStatusChange, SyncStatus } from './services/db';
+import { db, onSyncStatusChange, SyncStatus, subscribeRealtime } from './services/db';
 import { financeService } from './services/finance';
 import { checkLatestVersion } from './services/versionService';
 
@@ -182,6 +182,31 @@ export default function App() {
     }
   }, [simulatedUser?.menu_size, user?.menu_size]);
 
+  // Multi-device realtime sync: whenever ANY table changes on ANY device for
+  // this user (Supabase Realtime/Postgres CDC), reload data here almost
+  // instantly instead of waiting for the next manual refresh/app reopen.
+  useEffect(() => {
+    const activeId = (simulatedUser || user)?.id;
+    if (!activeId) return;
+
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const handleRemoteChange = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      // Small debounce: a single user action can touch multiple tables
+      // (e.g. a transaction + its account balance) - wait for the burst
+      // to settle before reloading once.
+      debounceTimer = setTimeout(() => {
+        loadUserData(activeId, true);
+      }, 400);
+    };
+
+    const unsubscribe = subscribeRealtime(activeId, handleRemoteChange);
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      unsubscribe();
+    };
+  }, [simulatedUser?.id, user?.id]);
+
   useEffect(() => {
     // Só aplica escala de fontSize em telas desktop (>=1024px).
     // Em mobile, fontSize fixo em 100% para não causar overflow.
@@ -300,10 +325,10 @@ export default function App() {
     };
   }, [user]);
 
-  const loadUserData = async (userId: string) => {
-    setLoadingData(true);
+  const loadUserData = async (userId: string, forceRefresh: boolean = false) => {
+    if (!forceRefresh) setLoadingData(true);
     try {
-        const data = await db.getFinancialData(userId);
+        const data = await db.getFinancialData(userId, forceRefresh);
         
         setTransactions(data.transactions || []);
         setTransactionAllocations(data.transaction_allocations || []);
