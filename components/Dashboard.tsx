@@ -622,7 +622,7 @@ export default function Dashboard({
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
       
       {/* Renderização Dinâmica do Layout */}
-      {currentLayout.map(item => item.visible ? renderItem(item.id) : null)}
+      {currentLayout.map(item => (item.visible || item.id === 'summary_widgets') ? renderItem(item.id) : null)}
 
       {/* Botão de Ajuste de Tela Inicial */}
       <div className="pt-8 pb-4 flex justify-center">
@@ -650,7 +650,7 @@ export default function Dashboard({
             </div>
 
             <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2 no-scrollbar">
-              {currentLayout.map((item, idx) => (
+              {currentLayout.filter(item => item.id !== 'summary_widgets').map((item, idx) => (
                 <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-white/5">
                   <div className="flex items-center gap-3">
                     <div className="flex flex-col gap-1">
