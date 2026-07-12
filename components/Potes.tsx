@@ -258,6 +258,7 @@ export default function Potes({
       {/* Modal de Detalhes do Pote */}
       {detailAccount && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#1e293b] rounded-[2.5rem] w-full max-w-lg p-8 border border-slate-200 dark:border-white/10 shadow-2xl max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-2">
               <div>
                 <h3 className="text-xl font-black text-[#212529] dark:text-white uppercase tracking-tighter">{detailAccount.name}</h3>
