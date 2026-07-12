@@ -33,8 +33,12 @@ const setSyncStatus = (status: SyncStatus) => {
 // immediately instead of waiting for the next manual/background refresh.
 const REALTIME_TABLES = [
   'accounts', 'transactions', 'categories', 'subcategories', 'goals', 'debts',
-  'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards',
-  'transaction_allocations'
+  'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards'
+  // NOTE: transaction_allocations intentionally excluded - it has no user_id
+  // column to filter on server-side, so subscribing to it would fire for
+  // EVERY user's changes, not just this one. A transaction insert/update
+  // (which always accompanies an allocation change) already triggers a
+  // reload that re-fetches allocations for the loaded transactions.
 ] as const;
 
 export const subscribeRealtime = (userId: string, onChange: () => void) => {
@@ -45,13 +49,9 @@ export const subscribeRealtime = (userId: string, onChange: () => void) => {
   const channel = supabase.channel(`user-sync-${userId}`);
 
   REALTIME_TABLES.forEach(table => {
-    // transaction_allocations has no user_id column directly, so it isn't
-    // filterable server-side; we still listen (unfiltered) and just trigger
-    // a refresh, which is cheap since it's debounced by the caller.
-    const filter = table === 'transaction_allocations' ? undefined : `user_id=eq.${userId}`;
     channel.on(
       'postgres_changes' as any,
-      { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) },
+      { event: '*', schema: 'public', table, filter: `user_id=eq.${userId}` },
       () => onChange()
     );
   });
@@ -346,7 +346,7 @@ export const db = {
           const { error } = await supabase.from(tableName).upsert(data);
           if (error) {
             // Ignorar erros de tabelas que não existem no banco de dados
-            if (error.code === 'PGRST114' || (error.message?.includes('relation') && error.message?.includes('does not exist'))) {
+            if (error.code === 'PGRST114' || error.code === 'PGRST205' || (error.message?.includes('relation') && error.message?.includes('does not exist')) || error.message?.includes('Could not find the table')) {
               console.warn(`Tabela ${tableName} não existe no banco de dados. Sincronização desta tabela ignorada.`);
               return;
             }
@@ -514,7 +514,12 @@ export const db = {
           updated_at: item.updated_at
         })));
         if (error) {
-          if (error.code !== 'PGRST114' && !error.message?.includes('relation')) {
+          const isMissingTable =
+            error.code === 'PGRST114' ||
+            error.code === 'PGRST205' ||
+            error.message?.includes('relation') ||
+            error.message?.includes('Could not find the table');
+          if (!isMissingTable) {
             console.error("Failed to sync shopping list to Supabase:", error);
             throw error;
           }
@@ -613,7 +618,12 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
   const fetchPromises = tables.map(async (table) => {
     const { data, error } = await supabase.from(table).select('*').eq('user_id', userId);
     if (error) {
-      if (error.code === 'PGRST114' || (error.message?.includes('relation') && error.message?.includes('does not exist'))) {
+      const isMissingTable =
+        error.code === 'PGRST114' ||
+        error.code === 'PGRST205' ||
+        (error.message?.includes('relation') && error.message?.includes('does not exist')) ||
+        error.message?.includes('Could not find the table');
+      if (isMissingTable) {
         console.warn(`Tabela ${table} nao encontrada no Supabase. Retornando dados vazios.`);
         return [];
       }
