@@ -166,6 +166,63 @@ export default function Potes({
     setRedistribution({});
   };
 
+  const renderConfigForm = () => (
+    <form onSubmit={handleSave} className="space-y-5" onClick={(e) => e.stopPropagation()}>
+      <div className="space-y-2">
+        <label className="text-[10px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-widest ml-1">Identificação</label>
+        <input type="text" required className="w-full px-5 py-4 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-[#212529] dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" value={currentAccount.name} onChange={e => setCurrentAccount({...currentAccount, name: e.target.value})} />
+      </div>
+      <div className="space-y-2">
+        <label className="text-[10px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-widest ml-1">Percentual de Entrada (%)</label>
+        <div className="relative">
+          <input type="number" required min="0" max="100" className="w-full px-5 py-4 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm text-[#212529] dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" value={currentAccount.percentage || ''} onChange={e => setCurrentAccount({...currentAccount, percentage: parseInt(e.target.value) || 0})} />
+          <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[#4e545a] dark:text-slate-700 font-black">%</span>
+        </div>
+      </div>
+
+      {/* Indicador de soma total */}
+      <div className={`flex items-center justify-between px-4 py-3 rounded-2xl border text-xs font-black uppercase tracking-widest ${
+        redistributedTotal > 100 ? 'bg-rose-500/10 border-rose-500/30 text-rose-500' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+      }`}>
+        <span>Soma total do rateio</span>
+        <span>{redistributedTotal}% / 100%</span>
+      </div>
+
+      {/* Redistribuição: aparece quando a soma ultrapassa 100% */}
+      {needsRedistribution && otherAccounts.length > 0 && (
+        <div className="space-y-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
+          <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+            Passou de 100% — reduza o rateio de algum pote existente:
+          </p>
+          {otherAccounts.map(acc => (
+            <div key={acc.id} className="flex items-center gap-3">
+              <span className="flex-1 text-xs font-bold text-[#212529] dark:text-slate-200 truncate">{acc.name}</span>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                className="w-20 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-center text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-amber-500"
+                value={redistribution[acc.id] ?? acc.percentage ?? 0}
+                onChange={e => setRedistribution({ ...redistribution, [acc.id]: parseInt(e.target.value) || 0 })}
+              />
+              <span className="text-xs text-[#4e545a] dark:text-slate-600 font-black">%</span>
+            </div>
+          ))}
+          <p className="text-[9px] text-[#4e545a] dark:text-slate-600 leading-relaxed pt-1">
+            Isso só muda como as <strong>próximas</strong> entradas serão divididas. O saldo que já está em cada pote continua exatamente igual.
+          </p>
+        </div>
+      )}
+
+      <div className="flex gap-4 pt-2">
+        <button type="button" onClick={() => { setShowModal(null); setRedistribution({}); }} className="flex-1 py-4 text-[#4e545a] dark:text-slate-700 font-black uppercase text-xs tracking-widest hover:text-[#212529] dark:hover:text-white transition-colors">Cancelar</button>
+        <button type="submit" disabled={redistributedTotal > 100} className="flex-1 py-4 bg-indigo-600 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-indigo-500 shadow-xl transition-all">
+          Confirmar
+        </button>
+      </div>
+    </form>
+  );
+
   return (
     <div className="space-y-8">
       {/* Resumo da Estrutura */}
@@ -221,82 +278,109 @@ export default function Potes({
         </button>
       </div>
 
+      {/* Painel inline de Novo Pote (sem modal/overlay) */}
+      {showModal === 'add' && (
+        <div className="bg-white dark:bg-[#0a0c14] p-8 rounded-[2.5rem] border border-indigo-500/30 shadow-xl animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-black text-[#212529] dark:text-white uppercase tracking-tighter">Novo Pote</h3>
+            <button onClick={() => { setShowModal(null); setRedistribution({}); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"><X className="w-5 h-5 text-[#4e545a] dark:text-slate-700" /></button>
+          </div>
+          {renderConfigForm()}
+        </div>
+      )}
+
       {/* Grid de Potes Editáveis */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {accounts.map((account) => {
           const displayBalance = periodBalances ? periodBalances[account.id] : account.current_balance;
           const isPeriodView = !!periodBalances;
+          const isExpanded = detailAccount?.id === account.id;
 
           return (
-            <div key={account.id} className="bg-white dark:bg-[#111827]/40 p-6 rounded-[2rem] border border-slate-200 dark:border-white/5 group relative overflow-hidden transition-all hover:border-indigo-500/30 shadow-sm dark:shadow-none">
+            <div
+              key={account.id}
+              className={`bg-white dark:bg-[#111827]/40 p-6 rounded-[2rem] border border-slate-200 dark:border-white/5 group relative overflow-hidden transition-all hover:border-indigo-500/30 shadow-sm dark:shadow-none ${isExpanded ? 'col-span-2 lg:col-span-4' : ''}`}
+            >
+              {showModal === 'edit' && currentAccount.id === account.id ? (
+                <div className="animate-in fade-in duration-200">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-sm font-black text-[#212529] dark:text-white uppercase tracking-tight">Configurar Pote</h3>
+                    <button onClick={() => { setShowModal(null); setRedistribution({}); }} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"><X className="w-4 h-4 text-[#4e545a] dark:text-slate-700" /></button>
+                  </div>
+                  {renderConfigForm()}
+                </div>
+              ) : (
+              <>
               <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                <button onClick={() => setDetailAccount(account)} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl" title="Detalhes"><ListTree className="w-4 h-4" /></button>
+                <button onClick={() => setDetailAccount(isExpanded ? null : account)} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl" title="Detalhes"><ListTree className="w-4 h-4" /></button>
                 <button onClick={() => openEditModal(account)} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Edit2 className="w-4 h-4" /></button>
                 <button onClick={() => { if(confirm(`Excluir ${account.name}? As transações vinculadas perderão a referência de conta.`)) onUpdate(accounts.filter(p => p.id !== account.id)) }} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Trash2 className="w-4 h-4" /></button>
               </div>
 
-              <div className="bg-indigo-500/10 w-12 h-12 flex items-center justify-center rounded-2xl border border-indigo-500/20 mb-6">
-                <Archive className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-              </div>
+              <button
+                type="button"
+                onClick={() => setDetailAccount(isExpanded ? null : account)}
+                className="w-full text-left"
+              >
+                <div className="bg-indigo-500/10 w-12 h-12 flex items-center justify-center rounded-2xl border border-indigo-500/20 mb-6">
+                  <Archive className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                </div>
 
-              <h3 className="text-lg font-black text-[#212529] dark:text-white mb-1 tracking-tight truncate pr-10">{account.name}</h3>
-              <span className="text-[10px] font-black text-indigo-600/80 dark:text-indigo-500/80 uppercase tracking-widest block mb-4">Rateio: {account.percentage}%</span>
+                <h3 className="text-lg font-black text-[#212529] dark:text-white mb-1 tracking-tight truncate pr-10">{account.name}</h3>
+                <span className="text-[10px] font-black text-indigo-600/80 dark:text-indigo-500/80 uppercase tracking-widest block mb-4">Rateio: {account.percentage}%</span>
 
-              <div className="pt-4 border-t border-slate-100 dark:border-white/5">
-                <p className="text-[9px] text-[#4e545a] dark:text-slate-700 uppercase font-black tracking-widest mb-1">
-                  {isPeriodView ? 'Fluxo do Período' : 'Saldo Acumulado'}
-                </p>
-                <p className={`text-4xl font-black tracking-tighter ${displayBalance >= 0 ? 'text-[#212529] dark:text-slate-200' : 'text-rose-500'}`}>
-                  R$ {formatCurrency(displayBalance)}
-                </p>
-              </div>
+                <div className="pt-4 border-t border-slate-100 dark:border-white/5">
+                  <p className="text-[9px] text-[#4e545a] dark:text-slate-700 uppercase font-black tracking-widest mb-1">
+                    {isPeriodView ? 'Fluxo do Período' : 'Saldo Acumulado'}
+                  </p>
+                  <p className={`text-4xl font-black tracking-tighter ${displayBalance >= 0 ? 'text-[#212529] dark:text-slate-200' : 'text-rose-500'}`}>
+                    R$ {formatCurrency(displayBalance)}
+                  </p>
+                </div>
+              </button>
+
+              {/* Histórico do pote: abre AQUI, dentro do próprio card, em vez de uma tela separada */}
+              {isExpanded && (
+                <div className="mt-6 pt-6 border-t border-slate-100 dark:border-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-[10px] font-black text-[#4e545a] dark:text-slate-600 uppercase tracking-widest">Movimentações</h4>
+                    <button onClick={() => setDetailAccount(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"><X className="w-4 h-4 text-[#4e545a] dark:text-slate-700" /></button>
+                  </div>
+                  <div className="space-y-2 max-h-72 overflow-y-auto">
+                    {detailHistory.length === 0 && (
+                      <p className="text-center text-sm text-slate-500 py-8">Nenhuma movimentação registrada neste pote ainda.</p>
+                    )}
+                    {detailHistory.map(item => {
+                      const cat = categories.find(c => c.id === item.categoryId);
+                      const isIncome = item.type === 'income';
+                      return (
+                        <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {isIncome ? <ArrowUpCircle className="w-5 h-5 text-emerald-500 shrink-0" /> : <ArrowDownCircle className="w-5 h-5 text-rose-500 shrink-0" />}
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-[#212529] dark:text-white truncate">{item.description}</p>
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 truncate">{cat?.name || 'Sem categoria'} · {formatDisplayDate(item.date)}</p>
+                            </div>
+                          </div>
+                          <span className={`text-sm font-black flex-shrink-0 ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            {isIncome ? '+' : '-'} {formatCurrency(item.amount)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              </>
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* Modal de Detalhes do Pote */}
-      {detailAccount && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#1e293b] rounded-[2.5rem] w-full max-w-lg p-8 border border-slate-200 dark:border-white/10 shadow-2xl max-h-[85vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-2">
-              <div>
-                <h3 className="text-xl font-black text-[#212529] dark:text-white uppercase tracking-tighter">{detailAccount.name}</h3>
-                <p className="text-xs text-slate-500 font-bold">{detailAccount.percentage}% do rateio · {formatCurrency(detailAccount.current_balance)}</p>
-              </div>
-              <button onClick={() => setDetailAccount(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"><X className="w-5 h-5 text-[#4e545a] dark:text-slate-700" /></button>
-            </div>
-
-            <div className="mt-6 space-y-2">
-              {detailHistory.length === 0 && (
-                <p className="text-center text-sm text-slate-500 py-10">Nenhuma movimentação registrada neste pote ainda.</p>
-              )}
-              {detailHistory.map(item => {
-                const cat = categories.find(c => c.id === item.categoryId);
-                const isIncome = item.type === 'income';
-                return (
-                  <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 rounded-2xl">
-                    <div className="flex items-center gap-3">
-                      {isIncome ? <ArrowUpCircle className="w-5 h-5 text-emerald-500 shrink-0" /> : <ArrowDownCircle className="w-5 h-5 text-rose-500 shrink-0" />}
-                      <div>
-                        <p className="text-sm font-bold text-[#212529] dark:text-white">{item.description}</p>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{cat?.name || 'Sem categoria'} · {formatDisplayDate(item.date)}</p>
-                      </div>
-                    </div>
-                    <span className={`text-sm font-black ${isIncome ? 'text-emerald-500' : 'text-rose-500'}`}>
-                      {isIncome ? '+' : '-'} {formatCurrency(item.amount)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Modal de Configuração de Pote */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-black/95 backdrop-blur-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#1e293b] rounded-[2.5rem] w-full max-w-md p-10 border border-slate-200 dark:border-white/10 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-xl font-black text-[#212529] dark:text-white uppercase tracking-tighter">{showModal === 'add' ? 'Novo Pote' : 'Configurar Pote'}</h3>
