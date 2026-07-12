@@ -376,7 +376,7 @@ export default function App() {
 
   // Theme Management
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('zen_theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('zen_theme') as 'dark' | 'light') || 'light';
   });
 
   useEffect(() => {

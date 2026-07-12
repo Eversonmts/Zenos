@@ -393,9 +393,23 @@ export const db = {
   // cria as categorias padrão de verdade no Supabase - nunca usa objetos "fake"
   // só de memória, que quebrariam a chave estrangeira ao lançar uma transação.
   ensureDefaultCategories: async (userId: string, existingCategories: Category[]): Promise<Category[]> => {
-    const hasOwnCategories = existingCategories.some(c => c.user_id === userId);
-    if (hasOwnCategories || isTestUser(userId)) return existingCategories;
+    if (isTestUser(userId)) return existingCategories;
 
+    // Never trust the local/passed-in array to decide whether to seed -
+    // that array can be empty due to a transient cache/auth hiccup even
+    // though the user already has categories in the database. Ask the DB.
+    const { count, error: countError } = await supabase
+      .from('categories')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (countError) {
+      console.error('Failed to check existing categories, skipping seed to avoid duplicates:', countError);
+      return existingCategories;
+    }
+    if ((count ?? 0) > 0) return existingCategories;
+
+    // 4 default expense categories (2 subcategories each) + 1 default income category.
     const defaults = [
       { user_id: userId, name: 'Alimentação', type: 'expense', color: '#FF5252', icon: 'Utensils', is_default: true },
       { user_id: userId, name: 'Combustível', type: 'expense', color: '#FFD740', icon: 'Fuel', is_default: true },
@@ -405,9 +419,36 @@ export const db = {
     ];
 
     try {
-      const { data, error } = await supabase.from('categories').insert(defaults).select('*');
+      // onConflict + ignoreDuplicates makes this safe even if two devices/tabs
+      // race to seed at the same time - the unique (user_id, name, type)
+      // constraint means only one copy of each ever survives.
+      const { data, error } = await supabase
+        .from('categories')
+        .upsert(defaults, { onConflict: 'user_id,name,type', ignoreDuplicates: true })
+        .select('*');
       if (error) throw error;
-      return [...existingCategories, ...(data as Category[])];
+
+      const created = (data as Category[]) || [];
+
+      // Seed 2 default subcategories for each of the 4 expense categories.
+      const subDefaults: Record<string, string[]> = {
+        'Alimentação': ['Mercado', 'Restaurante'],
+        'Combustível': ['Carro', 'Moto'],
+        'Moradia': ['Aluguel', 'Contas'],
+        'Lazer': ['Viagem', 'Cinema'],
+      };
+      const subRows = created
+        .filter(c => subDefaults[c.name])
+        .flatMap(c => subDefaults[c.name].map(name => ({ user_id: userId, category_id: c.id, name })));
+
+      if (subRows.length) {
+        const { error: subError } = await supabase
+          .from('subcategories')
+          .upsert(subRows, { onConflict: 'user_id,category_id,name', ignoreDuplicates: true });
+        if (subError) console.error('Failed to seed default subcategories:', subError);
+      }
+
+      return [...existingCategories, ...created];
     } catch (error) {
       console.error('Failed to seed default categories:', error);
       return existingCategories;
@@ -418,8 +459,18 @@ export const db = {
   // funcionar só com objetos fictícios em memória - sempre garante que existam
   // linhas reais no banco antes de permitir que o usuário lance algo contra elas.
   ensureDefaultAccounts: async (userId: string, existingAccounts: Account[]): Promise<Account[]> => {
-    const hasOwnAccounts = existingAccounts.some(a => a.user_id === userId);
-    if (hasOwnAccounts || isTestUser(userId)) return existingAccounts;
+    if (isTestUser(userId)) return existingAccounts;
+
+    const { count, error: countError } = await supabase
+      .from('accounts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (countError) {
+      console.error('Failed to check existing accounts, skipping seed to avoid duplicates:', countError);
+      return existingAccounts;
+    }
+    if ((count ?? 0) > 0) return existingAccounts;
 
     const defaults = [
       { user_id: userId, name: 'Operacional', type: 'bank', balance_initial: 0, current_balance: 0, percentage: 60, is_active: true, color: '#4F46E5' },
@@ -427,7 +478,10 @@ export const db = {
     ];
 
     try {
-      const { data, error } = await supabase.from('accounts').insert(defaults).select('*');
+      const { data, error } = await supabase
+        .from('accounts')
+        .upsert(defaults, { onConflict: 'user_id,name', ignoreDuplicates: true })
+        .select('*');
       if (error) throw error;
       return [...existingAccounts, ...(data as Account[])];
     } catch (error) {
