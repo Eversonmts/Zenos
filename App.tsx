@@ -3,9 +3,9 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, Receipt, Target, BrainCircuit, Menu, X, Archive, 
   AlertCircle, Plus, Settings as SettingsIcon, Camera, Mic, Loader2, StopCircle, LogOut, Shield, Wallet, Lock, Crown, Check, CreditCard as CreditCardIcon, ShoppingBag, Activity, ArrowUpCircle, ArrowDownCircle, Eye, Fingerprint,
-  BarChart2, CheckSquare, StickyNote, Book, Calendar as CalendarIcon, MessageSquare, PieChart, Tag
+  BarChart2, CheckSquare, StickyNote, Book, Calendar as CalendarIcon, MessageSquare, PieChart, Tag, ShoppingCart
 } from 'lucide-react';
-import { AppView, Transaction, Account, Debt, Goal, Category, Subcategory, Profile, Plan, Settings as SettingsType, FinancialData, Subscription, Task, Note, JournalEntry, CalendarEvent, Budget, TransactionAllocation, CreditCard } from './types';
+import { AppView, Transaction, Account, Debt, Goal, Category, Subcategory, Profile, Plan, Settings as SettingsType, FinancialData, Subscription, Task, Note, JournalEntry, CalendarEvent, Budget, TransactionAllocation, CreditCard, ShoppingItem } from './types';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import Compromissos from './components/Compromissos';
@@ -27,6 +27,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import ZenosIA from './components/ZenosIA';
 import ZenOSLogo from './components/ZenOSLogo';
 import ZenosIAScannerModal from './components/ZenosIAScannerModal';
+import ShoppingList from './components/ShoppingList';
 import { analyzeReceipt, analyzeAudioCommand } from './services/gemini';
 import { initializeAuth, logout as authLogout, updateProfileData } from './services/auth';
 import { db, onSyncStatusChange, SyncStatus } from './services/db';
@@ -110,6 +111,7 @@ export default function App() {
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [shoppingList, setShoppingList] = useState<ShoppingItem[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [settings, setSettings] = useState<SettingsType[]>([]);
@@ -330,6 +332,7 @@ export default function App() {
         setJournalEntries(data.journal || []);
         setEvents(data.calendar || []);
         setBudgets(data.budgets || []);
+        setShoppingList(data.shopping_list || []);
         
         // Load plans
         const plansList = await db.admin.plans.list();
@@ -440,6 +443,7 @@ export default function App() {
     { id: 'notes', label: 'Notas', icon: StickyNote, section: 'PRODUTIVIDADE' },
     { id: 'journal', label: 'Diário', icon: Book, section: 'PRODUTIVIDADE' },
     { id: 'calendar', label: 'Calendário', icon: CalendarIcon, section: 'PRODUTIVIDADE' },
+    { id: 'shopping_list' as any, label: 'Lista de Compras', icon: ShoppingCart, section: 'PRODUTIVIDADE' },
     { id: 'analytics', label: 'Análise', icon: BarChart2, section: 'INTELIGÊNCIA' },
     { id: 'advisor', label: 'Zenos IA', icon: BrainCircuit, section: 'INTELIGÊNCIA' },
     { id: 'settings', label: 'Ajustes', icon: SettingsIcon, section: 'SISTEMA' },
@@ -480,6 +484,90 @@ export default function App() {
           });
           return newData;
       });
+  };
+
+  const handleAddGoal = (g: Goal) => {
+    updateAndSave((prev: Goal[]) => [...prev, g], setGoals, db.saveGoals);
+  };
+
+  const handleAddCompromisso = (e: CalendarEvent) => {
+    updateAndSave((prev: CalendarEvent[]) => [...prev, e], setEvents, db.saveCalendar);
+  };
+
+  const handleAddNote = (n: Note) => {
+    updateAndSave((prev: Note[]) => [...prev, n], setNotes, db.saveNotes);
+  };
+
+  const handleAddTask = (t: Task) => {
+    updateAndSave((prev: Task[]) => [...prev, t], setTasks, db.saveTasks);
+  };
+
+  const handleAddShoppingItem = (name: string, quantity?: string) => {
+    if (!activeUser) return;
+    const newItem: ShoppingItem = {
+      id: crypto.randomUUID(),
+      user_id: activeUser.id,
+      name,
+      quantity,
+      completed: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    const updated = [...shoppingList, newItem];
+    setShoppingList(updated);
+    db.saveShoppingList(activeUser.id, updated).catch(err => console.error("Failed to save shopping item:", err));
+  };
+
+  const handleToggleShoppingItem = (id: string) => {
+    if (!activeUser) return;
+    const updated = shoppingList.map(item => 
+      item.id === id ? { ...item, completed: !item.completed, updated_at: new Date().toISOString() } : item
+    );
+    setShoppingList(updated);
+    db.saveShoppingList(activeUser.id, updated).catch(err => console.error("Failed to toggle shopping item:", err));
+  };
+
+  const handleDeleteShoppingItem = (id: string) => {
+    if (!activeUser) return;
+    const updated = shoppingList.filter(item => item.id !== id);
+    setShoppingList(updated);
+    db.saveShoppingList(activeUser.id, updated).catch(err => console.error("Failed to delete shopping item:", err));
+  };
+
+  const handleClearCompletedShopping = () => {
+    if (!activeUser) return;
+    const updated = shoppingList.filter(item => !item.completed);
+    setShoppingList(updated);
+    db.saveShoppingList(activeUser.id, updated).catch(err => console.error("Failed to clear completed shopping items:", err));
+  };
+
+  const handlePayCompromisso = (compromissoId: string, accountId: string, amount: number) => {
+    if (!activeUser) return;
+    const targetComp = events.find(e => e.id === compromissoId);
+    if (targetComp) {
+      const updatedEvents = events.map(e => 
+        e.id === compromissoId ? { ...e, status: 'paid', updated_at: new Date().toISOString() } : e
+      );
+      setEvents(updatedEvents);
+      db.saveCalendar(activeUser.id, updatedEvents);
+
+      const paymentTx: Transaction = {
+        id: crypto.randomUUID(),
+        user_id: activeUser.id,
+        description: `Pago: ${targetComp.title}`,
+        amount: Math.abs(amount),
+        type: 'expense',
+        category_id: categories.find(c => c.name.toLowerCase().includes('moradia') || c.name.toLowerCase().includes('alimentação'))?.id || null,
+        subcategory_id: null,
+        account_id: accountId,
+        date_at: new Date().toISOString().split('T')[0],
+        payment_method: 'Zenos IA Baixa',
+        is_recurring: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      handleAddTransaction(paymentTx);
+    }
   };
 
   // --- Specific Action Handlers ---
@@ -980,7 +1068,14 @@ export default function App() {
           categories={categories}
           activeUser={activeUser}
           activePlan={plans.find(p => p.id === activeUser?.plan_id) || plans.find(p => p.name === activeUser?.plan) || null}
+          compromissos={events}
           onAddTransaction={handleAddTransaction}
+          onAddGoal={handleAddGoal}
+          onAddCompromisso={handleAddCompromisso}
+          onAddNote={handleAddNote}
+          onAddTask={handleAddTask}
+          onAddShoppingItem={handleAddShoppingItem}
+          onPayCompromisso={handlePayCompromisso}
           showToast={showToast}
         />
       )}
@@ -1237,6 +1332,15 @@ export default function App() {
                   db.deleteRow('tasks', id).catch(err => console.error(err));
                   updateAndSave((prev: Task[]) => prev.filter(t => t.id !== id), setTasks, db.saveTasks);
                 }}
+              />
+            )}
+            {view === 'shopping_list' as any && (
+              <ShoppingList
+                items={shoppingList}
+                onAddItem={handleAddShoppingItem}
+                onToggleItem={handleToggleShoppingItem}
+                onDeleteItem={handleDeleteShoppingItem}
+                onClearCompleted={handleClearCompletedShopping}
               />
             )}
             {view === 'notes' && (

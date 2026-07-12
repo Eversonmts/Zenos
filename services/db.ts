@@ -57,7 +57,8 @@ const saveLocalData = (userId: string, data: Partial<FinancialData>) => {
       journal: [],
       calendar: [],
       budgets: [],
-      settings: []
+      settings: [],
+      shopping_list: []
     };
     const updated = { ...current, ...data };
     localStorage.setItem(LOCAL_STORAGE_KEY + userId, JSON.stringify(updated));
@@ -229,7 +230,7 @@ export const db = {
         subcategories: [], transaction_allocations: [], cards: [],
         accounts: INITIAL_ACCOUNTS, transactions: [], goals: [], debts: [],
         tasks: [], notes: [], journal: [], calendar: [], budgets: [],
-        settings: []
+        settings: [], shopping_list: []
       };
     }
 
@@ -254,7 +255,7 @@ export const db = {
         subcategories: [], transaction_allocations: [], cards: [],
         accounts: INITIAL_ACCOUNTS, transactions: [], goals: [], debts: [],
         tasks: [], notes: [], journal: [], calendar: [], budgets: [],
-        settings: []
+        settings: [], shopping_list: []
       };
     }
   },
@@ -444,6 +445,32 @@ export const db = {
     if (error) { console.error("Failed to save settings:", error); throw error; }
   },
 
+  saveShoppingList: async (userId: string, items: any[]) => {
+    saveLocalData(userId, { shopping_list: items } as any);
+    if (isTestUser(userId)) return;
+    try {
+      if (items.length > 0) {
+        const { error } = await supabase.from('shopping_list').upsert(items.map(item => ({
+          id: item.id,
+          user_id: userId,
+          name: item.name,
+          quantity: item.quantity || null,
+          completed: item.completed,
+          created_at: item.created_at,
+          updated_at: item.updated_at
+        })));
+        if (error) {
+          if (error.code !== 'PGRST114' && !error.message?.includes('relation')) {
+            console.error("Failed to sync shopping list to Supabase:", error);
+            throw error;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to sync shopping list, keeping in local cache:", e);
+    }
+  },
+
   saveTasks: async (userId: string, tasks: any[]) => {
     saveLocalData(userId, { tasks });
     if (isTestUser(userId)) return;
@@ -527,7 +554,7 @@ export const db = {
 
 // Fetches every user-owned table from Supabase in parallel.
 async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
-  const tables = ['categories', 'subcategories', 'accounts', 'transactions', 'goals', 'debts', 'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards'] as const;
+  const tables = ['categories', 'subcategories', 'accounts', 'transactions', 'goals', 'debts', 'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards', 'shopping_list' as any] as const;
 
   const fetchPromises = tables.map(async (table) => {
     try {
@@ -591,5 +618,6 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
     calendar: byTable.calendar as any[],
     budgets: byTable.budgets as any[],
     cards: byTable.cards as any[],
+    shopping_list: (byTable.shopping_list || []) as any[],
   };
 }

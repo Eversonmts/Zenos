@@ -181,38 +181,69 @@ export const analyzeAudioCommand = async (base64Audio: string) => {
   }
 };
 
-export const parseTransactionFromText = async (text: string) => {
+export const parseIntentFromText = async (text: string, context: any) => {
   const apiKey = getApiKey();
   if (!apiKey) return null;
 
   const ai = getAI();
 
+  const systemInstruction = `
+    Você é o núcleo cognitivo do Zenos IA. Analise o comando do usuário e mapeie para uma das ações do sistema.
+    
+    AÇÕES SUPORTADAS:
+    1. "CREATE_TRANSACTION": Lançar receitas ou despesas normais (gastei, recebi).
+    2. "CREATE_GOAL": Criar metas financeiras (ex: poupar, comprar notebook).
+    3. "CREATE_COMPROMISSO": Criar compromissos ou contas a pagar no calendário.
+    4. "CREATE_NOTE": Criar notas rápidas de anotação.
+    5. "CREATE_TASK": Criar tarefas (afazeres).
+    6. "CREATE_SHOPPING_ITEM": Inserir itens na lista de compras (ex: "preciso comprar açúcar").
+    7. "PAY_COMPROMISSO": Dar baixa em contas/compromissos do calendário (ex: "paguei a conta de energia").
+
+    CONTEXTO DO USUÁRIO:
+    - Compromissos em aberto: ${JSON.stringify(context.compromissos || [])}
+    - Categorias do sistema: ${JSON.stringify(context.categories || [])}
+    - Potes/Contas disponíveis: ${JSON.stringify(context.accounts || [])}
+
+    REGRAS DE MAPEAMENTO:
+    - Se o usuário falar sobre comprar algo ou adicionar à lista de compras, use "CREATE_SHOPPING_ITEM".
+    - Se o usuário disser "paguei X", busque no contexto se há algum compromisso ativo cujo título seja correspondente a X. Se sim, use "PAY_COMPROMISSO" e retorne o ID e dados dele.
+    - Se for nota rápida ("anote...", "escreva..."), use "CREATE_NOTE".
+    - Se for meta ("quero economizar...", "criar meta de..."), use "CREATE_GOAL".
+    - Se for tarefa ("preciso fazer...", "criar tarefa de..."), use "CREATE_TASK".
+    
+    Gere um texto curto, dinâmico e natural em português para "speechResponse" confirmando os dados que serão criados na tela para aprovação final.
+  `;
+
   try {
     const response = await withTimeout(ai.models.generateContent({
       model: 'gemini-flash-latest',
-      contents: `Extraia a intenção de transação financeira deste comando: "${text}".
-         REGRAS:
-         - Se contiver gastos, compras, pagamentos, saídas -> type: "expense"
-         - Se contiver ganhos, recebimentos, depósitos, entradas -> type: "income"
-         - Identifique o valor numérico.
-         - Identifique a descrição (ex: café, combustível, mercado).
-         - Identifique a data mencionada (se nenhuma for dita, use a data de hoje formatada em YYYY-MM-DD).
-         - Recomende uma categoria de gastos (ex: Alimentação, Transporte, Lazer, etc.) baseada no item.
-         
-         Retorne APENAS um JSON válido.`,
+      contents: text,
       config: {
+        systemInstruction: systemInstruction,
         temperature: 0.1,
         responseMimeType: 'application/json',
         responseSchema: {
-           type: 'OBJECT',
-           properties: {
-             description: { type: 'STRING' },
-             amount: { type: 'NUMBER' },
-             date_at: { type: 'STRING', description: 'Formato YYYY-MM-DD' },
-             category: { type: 'STRING' },
-             type: { type: 'STRING', enum: ['income', 'expense'] }
-           },
-           required: ['description', 'amount', 'type']
+          type: 'OBJECT',
+          properties: {
+            action: { type: 'STRING', enum: ['CREATE_TRANSACTION', 'CREATE_GOAL', 'CREATE_COMPROMISSO', 'CREATE_NOTE', 'CREATE_TASK', 'CREATE_SHOPPING_ITEM', 'PAY_COMPROMISSO'] },
+            data: {
+              type: 'OBJECT',
+              properties: {
+                description: { type: 'STRING', description: 'Descrição, nome do item ou título da nota/compromisso/tarefa/meta' },
+                amount: { type: 'NUMBER', description: 'Valor financeiro associado' },
+                date_at: { type: 'STRING', description: 'Data formatada em YYYY-MM-DD' },
+                category: { type: 'STRING', description: 'Nome da categoria correspondente se aplicável' },
+                type: { type: 'STRING', enum: ['income', 'expense'] },
+                deadline: { type: 'STRING', description: 'Prazo da meta em YYYY-MM-DD' },
+                target_amount: { type: 'NUMBER', description: 'Valor alvo da meta' },
+                content: { type: 'STRING', description: 'Conteúdo detalhado da nota' },
+                quantity: { type: 'STRING', description: 'Quantidade do item de compras, ex: 2 pacotes' },
+                compromisso_id: { type: 'STRING', description: 'ID do compromisso a dar baixa se PAY_COMPROMISSO' }
+              }
+            },
+            speechResponse: { type: 'STRING', description: 'A fala resumida que Zenos IA dirá de volta' }
+          },
+          required: ['action', 'data', 'speechResponse']
         }
       }
     }));
@@ -220,7 +251,7 @@ export const parseTransactionFromText = async (text: string) => {
     const resultText = response.text || "{}";
     return JSON.parse(resultText);
   } catch (error) {
-    console.error("Text transaction parsing error:", error);
+    console.error("Text intent parsing error:", error);
     return null;
   }
 };

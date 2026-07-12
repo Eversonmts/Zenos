@@ -291,7 +291,8 @@ export type AppView =
   | 'calendar'
   | 'advisor'
   | 'settings' 
-  | 'admin';
+  | 'admin'
+  | 'shopping_list';
 
 export interface DashboardLayoutItem {
   id: string;
@@ -318,6 +319,7 @@ export interface FinancialData {
   calendar: CalendarEvent[];
   budgets: Budget[];
   settings: Settings[];
+  shopping_list: ShoppingItem[];
 }
 
 export interface AdminSettings {
@@ -389,5 +391,15 @@ export interface SystemHealthCheck {
   status: 'healthy' | 'degraded' | 'offline';
   latency_ms: number;
   checked_at: string;
+}
+
+export interface ShoppingItem {
+  id: string;
+  user_id: string;
+  name: string;
+  quantity?: string;
+  completed: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
