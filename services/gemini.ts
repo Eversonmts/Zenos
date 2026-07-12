@@ -180,3 +180,47 @@ export const analyzeAudioCommand = async (base64Audio: string) => {
     return null;
   }
 };
+
+export const parseTransactionFromText = async (text: string) => {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
+  const ai = getAI();
+
+  try {
+    const response = await withTimeout(ai.models.generateContent({
+      model: 'gemini-flash-latest',
+      contents: `Extraia a intenção de transação financeira deste comando: "${text}".
+         REGRAS:
+         - Se contiver gastos, compras, pagamentos, saídas -> type: "expense"
+         - Se contiver ganhos, recebimentos, depósitos, entradas -> type: "income"
+         - Identifique o valor numérico.
+         - Identifique a descrição (ex: café, combustível, mercado).
+         - Identifique a data mencionada (se nenhuma for dita, use a data de hoje formatada em YYYY-MM-DD).
+         - Recomende uma categoria de gastos (ex: Alimentação, Transporte, Lazer, etc.) baseada no item.
+         
+         Retorne APENAS um JSON válido.`,
+      config: {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+        responseSchema: {
+           type: 'OBJECT',
+           properties: {
+             description: { type: 'STRING' },
+             amount: { type: 'NUMBER' },
+             date_at: { type: 'STRING', description: 'Formato YYYY-MM-DD' },
+             category: { type: 'STRING' },
+             type: { type: 'STRING', enum: ['income', 'expense'] }
+           },
+           required: ['description', 'amount', 'type']
+        }
+      }
+    }));
+
+    const resultText = response.text || "{}";
+    return JSON.parse(resultText);
+  } catch (error) {
+    console.error("Text transaction parsing error:", error);
+    return null;
+  }
+};
