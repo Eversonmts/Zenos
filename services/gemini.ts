@@ -65,7 +65,7 @@ export const getFinancialAdvice = async (data: FinancialData, userQuery: string)
 
   try {
     const response = await withTimeout(ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-flash-latest',
       contents: userQuery,
       config: {
         systemInstruction: systemInstruction,
@@ -101,7 +101,7 @@ export const analyzeReceipt = async (base64Image: string) => {
 
   try {
     const response = await withTimeout(ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-flash-latest',
       contents: [
         { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
         { text: `Analise este cupom fiscal ou imagem financeira. Extraia os dados para criar uma transação.
@@ -144,7 +144,7 @@ export const analyzeAudioCommand = async (base64Audio: string) => {
 
   try {
     const response = await withTimeout(ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-flash-latest',
       contents: [
         { inlineData: { mimeType: 'audio/webm', data: base64Audio } }, 
         { text: `Ouça este comando de voz financeiro. Extraia a intenção de transação.

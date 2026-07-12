@@ -117,7 +117,7 @@ export default function ZenosIA({ data, activeUser, activePlan, onTransactionCom
       audioContextRef.current = audioCtx;
 
       const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-flash-latest',
         callbacks: {
           onopen: () => {
             const source = audioCtx.createMediaStreamSource(stream);
