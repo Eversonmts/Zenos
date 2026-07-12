@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Account, Transaction, TransactionAllocation, Category } from '../types';
+import { Account, Transaction, TransactionAllocation, Category, Profile, Plan } from '../types';
 import { Plus, Trash2, Edit2, Archive, X, Save, Settings, Calendar, ListTree, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 import { parseLocalDate, formatCurrency, formatDisplayDate } from '../lib/utils';
@@ -12,9 +12,15 @@ interface PotesProps {
   allocations: TransactionAllocation[];
   categories: Category[];
   onUpdate: (accounts: Account[]) => void;
+  activeUser: Profile;
+  activePlan: Plan | null;
+  showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
-export default function Potes({ activeUserId, accounts, transactions, allocations, categories, onUpdate }: PotesProps) {
+export default function Potes({ 
+  activeUserId, accounts, transactions, allocations, categories, onUpdate,
+  activeUser, activePlan, showToast 
+}: PotesProps) {
   const [showModal, setShowModal] = useState<'add' | 'edit' | null>(null);
   const [detailAccount, setDetailAccount] = useState<Account | null>(null);
   const [currentAccount, setCurrentAccount] = useState<Partial<Account>>({ name: '', percentage: 0, type: 'bank' });
@@ -37,6 +43,13 @@ export default function Potes({ activeUserId, accounts, transactions, allocation
   const needsRedistribution = redistributedTotal > 100;
 
   const openAddModal = () => {
+    // Validação de Limites de Cota de Potes (Administradores são isentos)
+    const maxPots = activePlan?.limits_json?.max_pots || 99;
+    if (activeUser.role !== 'admin' && accounts.length >= maxPots) {
+      showToast(`Limite atingido! O plano ${activePlan?.name || 'Básico'} permite no máximo ${maxPots} potes operacionais. Faça upgrade para desbloquear mais.`, 'error');
+      return;
+    }
+
     setCurrentAccount({ name: '', percentage: 0, type: 'bank' });
     setRedistribution({});
     setShowModal('add');

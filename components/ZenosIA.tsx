@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { BrainCircuit, Send, Loader2, Sparkles, Check, Mic, MicOff, Volume2 } from 'lucide-react';
-import { FinancialData, Transaction } from '../types';
+import { BrainCircuit, Send, Loader2, Sparkles, Check, Mic, MicOff, KeyRound } from 'lucide-react';
+import { FinancialData, Transaction, Profile, Plan } from '../types';
 import { getFinancialAdvice } from '../services/gemini';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 
@@ -34,9 +33,20 @@ function createBlob(data: Float32Array) {
   };
 }
 
-export default function AIAdvisor({ data, onTransactionCommand }: { data: FinancialData, onTransactionCommand: (t: Transaction) => void }) {
+interface ZenosIAProps {
+  data: FinancialData;
+  activeUser: Profile;
+  activePlan: Plan | null;
+  onTransactionCommand: (t: Transaction) => void;
+  showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+}
+
+export default function ZenosIA({ data, activeUser, activePlan, onTransactionCommand, showToast }: ZenosIAProps) {
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [hasApiKey, setHasApiKey] = useState(false);
+  
   const [messages, setMessages] = useState<Message[]>([
-    { id: '1', role: 'ai', content: 'ZenOS Neural Link Ativo. Clique no microfone para enviar comandos de voz ou digite sua solicitação.' }
+    { id: '1', role: 'ai', content: 'Zenos IA neural link ativo. Clique no microfone para enviar comandos de voz ou digite sua solicitação.' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -48,9 +58,25 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
   const streamRef = useRef<MediaStream | null>(null);
   const sessionRef = useRef<any>(null);
 
+  // Verifica se o usuário tem privilégio de admin ou se o plano dele inclui a IA
+  const hasAccessToAI = activeUser.role === 'admin' || activePlan?.features_json?.includes('ai_advisor');
+
+  useEffect(() => {
+    const key = localStorage.getItem('zenos_gemini_api_key') || process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+    setHasApiKey(!!key);
+  }, []);
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, liveTranscription]);
+
+  const handleSaveApiKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!apiKeyInput.trim()) return;
+    localStorage.setItem('zenos_gemini_api_key', apiKeyInput.trim());
+    setHasApiKey(true);
+    showToast("Chave da API do Google Gemini salva com sucesso!", "success");
+  };
 
   const stopListening = () => {
     if (sessionRef.current) {
@@ -77,6 +103,11 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
       setIsListening(true);
       setLiveTranscription('');
       const apiKey = localStorage.getItem('zenos_gemini_api_key') || process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        showToast("Configure sua API Key para usar o comando de voz", "error");
+        setIsListening(false);
+        return;
+      }
       const ai = new GoogleGenAI({ apiKey });
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -86,7 +117,7 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
       audioContextRef.current = audioCtx;
 
       const sessionPromise = ai.live.connect({
-        model: 'gemini-3.1-flash-live-preview',
+        model: 'gemini-2.5-flash',
         callbacks: {
           onopen: () => {
             const source = audioCtx.createMediaStreamSource(stream);
@@ -106,7 +137,6 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
               setLiveTranscription(prev => prev + message.serverContent!.inputTranscription!.text);
             }
             if (message.serverContent?.turnComplete) {
-              // Auto-stop on turn complete for command-like behavior
               stopListening();
             }
           },
@@ -116,7 +146,7 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
         config: {
           responseModalities: [Modality.AUDIO],
           inputAudioTranscription: {},
-          systemInstruction: 'Você é um assistente financeiro. Transcreva o que o usuário diz com precisão.'
+          systemInstruction: 'Você é um assistente financeiro de voz da Zenos IA. Transcreva com precisão.'
         }
       });
 
@@ -167,15 +197,15 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
   const confirmTransaction = (msgId: string, tx: Partial<Transaction>) => {
     const fullTx: Transaction = {
       id: crypto.randomUUID(),
-      user_id: '', // to be set by caller or handleAddTransaction
-      description: tx.description || 'Voz Contexto',
+      user_id: activeUser.id,
+      description: tx.description || 'Zenos IA Comando',
       amount: tx.amount || 0,
       type: tx.type || 'expense',
       category_id: (tx as any).category_id || null,
       subcategory_id: (tx as any).subcategory_id || null,
       account_id: (tx as any).account_id || (data.accounts.length > 0 ? data.accounts[0].id : null),
       date_at: (tx as any).date_at || new Date().toISOString().split('T')[0],
-      payment_method: 'Comando de Voz',
+      payment_method: 'Zenos IA',
       is_recurring: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -184,12 +214,75 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
     setMessages(prev => prev.map(m => m.id === msgId ? { ...m, suggestedTransaction: undefined } : m));
   };
 
+  // Se o usuário não tiver acesso no plano, mostra paywall estético do Zenos
+  if (!hasAccessToAI) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] bg-[#0a0c14] rounded-3xl border border-white/5 p-6 text-center space-y-6">
+        <div className="p-4 bg-indigo-600/10 text-indigo-500 rounded-full animate-pulse">
+          <BrainCircuit className="w-12 h-12" />
+        </div>
+        <div className="max-w-md space-y-2">
+          <h2 className="text-xl font-black text-white uppercase tracking-wider">🔒 Recurso Exclusivo Zenos IA</h2>
+          <p className="text-xs text-slate-400 font-bold leading-relaxed">
+            A inteligência artificial avançada do Zenos IA está bloqueada no seu plano atual. 
+            Faça um upgrade para o plano PRO para liberar análise em tempo real, categorização por voz e auditoria preditiva.
+          </p>
+        </div>
+        <div className="px-5 py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl">
+          Seu plano atual: {activePlan?.name || 'Básico (Free)'}
+        </div>
+      </div>
+    );
+  }
+
+  // Se a API Key do Gemini ainda não estiver configurada no navegador
+  if (!hasApiKey) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] bg-[#0a0c14] rounded-3xl border border-white/5 p-8 text-center space-y-6">
+        <div className="p-4 bg-indigo-600/15 text-indigo-500 rounded-3xl">
+          <KeyRound className="w-10 h-10" />
+        </div>
+        <div className="max-w-md space-y-2">
+          <h2 className="text-lg font-black text-white uppercase tracking-wider">Configurar Chave API do Gemini</h2>
+          <p className="text-xs text-slate-400 font-bold leading-relaxed">
+            Para ativar as capacidades neurais do **Zenos IA**, você precisa colar sua API Key do Google Gemini. 
+            Sua chave é armazenada localmente de forma segura.
+          </p>
+        </div>
+        <form onSubmit={handleSaveApiKey} className="max-w-md w-full flex flex-col sm:flex-row gap-2">
+          <input 
+            type="password"
+            placeholder="Cole sua API Key do Gemini aqui..."
+            className="flex-1 px-4 py-3 bg-slate-900 border border-white/5 rounded-xl text-white text-xs outline-none focus:ring-1 focus:ring-indigo-600 transition-all font-bold text-slate-955 dark:text-white"
+            value={apiKeyInput}
+            onChange={e => setApiKeyInput(e.target.value)}
+          />
+          <button 
+            type="submit"
+            className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all"
+          >
+            Ativar IA
+          </button>
+        </form>
+        <a 
+          href="https://aistudio.google.com/" 
+          target="_blank" 
+          rel="noreferrer"
+          className="text-[9px] font-black uppercase text-indigo-400 hover:underline tracking-wider"
+        >
+          Obter chave de API gratuita no Google AI Studio ↗
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] bg-[#0a0c14] rounded-3xl border border-white/5 overflow-hidden shadow-2xl animate-in fade-in duration-500">
+      {/* Header */}
       <div className="bg-indigo-600 px-5 py-4 text-white flex items-center justify-between">
         <div className="flex items-center gap-3">
           <BrainCircuit className="w-5 h-5" />
-          <h2 className="text-sm font-black uppercase tracking-widest">ZenAI Advisor</h2>
+          <h2 className="text-sm font-black uppercase tracking-widest">Zenos IA</h2>
         </div>
         <div className="flex items-center gap-2">
           {isListening && (
@@ -200,10 +293,11 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
             </div>
           )}
           <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-          <span className="text-[8px] font-black uppercase">Live</span>
+          <span className="text-[8px] font-black uppercase">Conectado</span>
         </div>
       </div>
 
+      {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#030712]/40 no-scrollbar">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
@@ -222,7 +316,7 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
                 <div className="flex justify-between items-center">
                    <div className="min-w-0">
                       <p className="text-[10px] font-bold text-white truncate">{msg.suggestedTransaction.description}</p>
-                      <p className="text-[9px] text-slate-600 font-black">R$ {msg.suggestedTransaction.amount?.toLocaleString()}</p>
+                      <p className="text-[9px] text-slate-600 font-black">R$ {msg.suggestedTransaction.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                    </div>
                    <button 
                     onClick={() => confirmTransaction(msg.id, msg.suggestedTransaction!)}
@@ -252,6 +346,7 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
         )}
       </div>
 
+      {/* Input */}
       <div className="p-4 bg-[#0a0c14] border-t border-white/5 safe-pb">
         <div className="flex gap-2">
           <button 
@@ -264,7 +359,7 @@ export default function AIAdvisor({ data, onTransactionCommand }: { data: Financ
           <form onSubmit={(e) => handleSend(e)} className="flex-1 relative flex gap-2">
             <input 
               className="flex-1 pl-4 pr-4 py-3 bg-slate-900 border border-white/5 rounded-xl text-white text-xs outline-none focus:ring-1 focus:ring-indigo-600 transition-all"
-              placeholder={isListening ? "Ouvindo seu comando..." : "Digite ou fale um comando..."}
+              placeholder={isListening ? "Ouvindo seu comando..." : "Pergunte algo à Zenos IA..."}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={isListening}

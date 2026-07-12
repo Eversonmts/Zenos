@@ -531,6 +531,75 @@ export const adminService = {
     if (error) throw error;
   },
 
+  // --- PLAN MANAGEMENT ---
+  createOrUpdatePlan: async (performerId: string, plan: Partial<Plan> & { name: string, price: number }): Promise<void> => {
+    const planId = plan.id || crypto.randomUUID();
+    const planData = {
+      id: planId,
+      name: plan.name,
+      price: Number(plan.price || 0),
+      limits_json: plan.limits_json || {},
+      features_json: plan.features_json || [],
+      is_active: plan.is_active !== undefined ? plan.is_active : true,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { error } = await supabase.from('plans').upsert([planData]);
+    if (error) throw error;
+    
+    await adminService.createAuditLog(
+      performerId, 
+      plan.id ? 'update_plan_config' : 'create_plan', 
+      planId, 
+      `Plano ${plan.name} cadastrado/atualizado (Preço: R$ ${plan.price})`
+    );
+  },
+
+  seedDefaultPlans: async (): Promise<void> => {
+    try {
+      const { data: existing } = await supabase.from('plans').select('id').limit(1);
+      if (existing && existing.length > 0) return; // Já existem planos
+
+      // Cadastra os 3 planos padrão do Zenos
+      const defaultPlans = [
+        {
+          id: crypto.randomUUID(),
+          name: 'Plano Básico',
+          price: 19.90,
+          limits_json: { max_cards: 2, max_pots: 3, max_categories: 8, max_goals: 3 },
+          features_json: ['pc_view'],
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: crypto.randomUUID(),
+          name: 'Plano Premium',
+          price: 39.90,
+          limits_json: { max_cards: 5, max_pots: 10, max_categories: 20, max_goals: 10 },
+          features_json: ['pc_view', 'cloud_backup'],
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: crypto.randomUUID(),
+          name: 'Plano Pro (Top)',
+          price: 59.90,
+          limits_json: { max_cards: 99, max_pots: 99, max_categories: 99, max_goals: 99 },
+          features_json: ['pc_view', 'cloud_backup', 'ai_advisor'],
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
+
+      await supabase.from('plans').insert(defaultPlans);
+    } catch (e) {
+      console.warn("Failed to seed default plans:", e);
+    }
+  },
+
   // --- HEALTH CHECKS ---
   getSystemHealth: async (): Promise<SystemHealthCheck[]> => {
     const start = Date.now();

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Category, Profile, Subcategory, Settings as SettingsType } from '../types';
+import { Category, Profile, Subcategory, Settings as SettingsType, Plan } from '../types';
 import { Settings as SettingsIcon, Plus, Trash2, Edit2, Check, X, Tag, Moon, Sun, Share2, CreditCard, Crown, Loader2, Clock, Database, Shield, Lock, Fingerprint, Cpu, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles, ChevronDown, ChevronUp, KeyRound } from 'lucide-react';
 import { formatDisplayDate } from '../lib/utils';
 import { db } from '../services/db';
@@ -20,6 +20,7 @@ interface SettingsProps {
   profile: Profile;
   onUpdateProfile: (profile: Profile) => void;
   initialTab?: 'categories' | 'appearance' | 'subscription' | 'profile';
+  activePlan: Plan | null;
 }
 
 export default function Settings({ 
@@ -34,7 +35,8 @@ export default function Settings({
   toggleTheme,
   profile,
   onUpdateProfile,
-  initialTab = 'categories'
+  initialTab = 'categories',
+  activePlan
 }: SettingsProps) {
   const [activeTab, setActiveTab] = useState<'categories' | 'appearance' | 'subscription' | 'profile' | 'payments' | 'database' | 'security' | 'system'>(initialTab as any);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -95,6 +97,14 @@ export default function Settings({
 
   const handleAddCategory = () => {
     if (!newCatName.trim()) return;
+
+    // Validação de Limites de Cota de Categorias (Administradores são isentos)
+    const maxCategories = activePlan?.limits_json?.max_categories || 99;
+    if (profile.role !== 'admin' && categories.length >= maxCategories) {
+      showToast(`Limite atingido! O seu plano (${activePlan?.name || 'Básico'}) permite no máximo ${maxCategories} categorias. Faça upgrade para desbloquear mais.`, 'error');
+      return;
+    }
+
     const newCat: Category = {
       id: crypto.randomUUID(),
       user_id: profile.id,
@@ -222,7 +232,7 @@ export default function Settings({
     const currentSettings = settings[0];
     const updated: SettingsType = currentSettings
       ? { ...currentSettings, meta_json: { ...(currentSettings.meta_json || {}), gemini_api_key: trimmed } }
-      : { id: crypto.randomUUID(), user_id: profile.id, currency: 'BRL', language: 'pt-BR', theme: currentTheme, notifications_enabled: true, meta_json: { gemini_api_key: trimmed }, updated_at: new Date().toISOString() } as SettingsType;
+      : { id: crypto.randomUUID(), user_id: profile.id, currency: 'BRL', language: 'pt-BR', theme: currentTheme, notifications_enabled: true, meta_json: { gemini_api_key: trimmed }, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as SettingsType;
 
     onUpdateSettings(currentSettings ? settings.map(s => s.id === updated.id ? updated : s) : [...settings, updated]);
     setGeminiKeySaved(true);

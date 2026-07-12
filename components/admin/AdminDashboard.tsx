@@ -5,7 +5,8 @@ import {
   Trash2, RefreshCw, Loader2, ArrowLeft, Activity, 
   Eye, HelpCircle, HardDrive, Settings2, 
   Clock, CheckCircle2, Globe, Sparkles, AlertCircle, 
-  KeyRound, Mail, User, Phone, Check, X, ShieldCheck
+  KeyRound, Mail, User, Phone, Check, X, ShieldCheck,
+  ToggleLeft, ToggleRight, ListPlus, Copy
 } from 'lucide-react';
 import { Profile, Plan, UserStatus, GatewayWebhook, DunningAttempt, BillingReceipt, SupportTicket, SystemHealthCheck, AdminLog } from '../../types';
 import { adminService } from '../../services/adminService';
@@ -20,7 +21,7 @@ interface AdminDashboardProps {
 }
 
 export default function AdminDashboard({ user, showToast, onBack, onSimulateUser }: AdminDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'gateway' | 'security'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'plans' | 'gateway' | 'security'>('overview');
   const [stats, setStats] = useState<any>(null);
   const [users, setUsers] = useState<Profile[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -61,6 +62,21 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
   const [savingUser, setSavingUser] = useState(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
+  // States para a Gestão de Planos
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [selectedPlanForEdit, setSelectedPlanForEdit] = useState<Plan | null>(null);
+  const [planName, setPlanName] = useState('');
+  const [planPrice, setPlanPrice] = useState(0);
+  const [limitCards, setLimitCards] = useState(5);
+  const [limitPots, setLimitPots] = useState(3);
+  const [limitCategories, setLimitCategories] = useState(10);
+  const [limitGoals, setLimitGoals] = useState(5);
+  const [featureAI, setFeatureAI] = useState(false);
+  const [featureWeb, setFeatureWeb] = useState(true);
+  const [featureBackup, setFeatureBackup] = useState(false);
+  const [cloningPlanId, setCloningPlanId] = useState('');
+  const [savingPlan, setSavingPlan] = useState(false);
+
   useEffect(() => {
     loadData();
   }, [activeTab]);
@@ -68,6 +84,9 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
   const loadData = async () => {
     setLoading(true);
     try {
+      // Garante que os planos padrão Básico, Premium e Pro existam no Supabase
+      await adminService.seedDefaultPlans();
+
       // Carrega estatísticas, usuários e planos
       const [statsData, usersData, plansData] = await Promise.all([
         adminService.getStats(),
@@ -174,14 +193,15 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
       }
       
       // 2. Atualização dos outros campos (Nome, Status, Plano, Telefone, Role)
-      const updatedProfile: Partial<Profile> = {
-        id: selectedUser.id,
+      const targetPlan = plans.find(p => p.id === editPlanId);
+      const updatedProfile: Profile = {
+        ...selectedUser,
         full_name: editFullName,
         phone: editPhone,
         status: editStatus,
         role: editRole,
         plan_id: editPlanId || null,
-        plan: plans.find(p => p.id === editPlanId)?.name || 'Gratuito',
+        plan: targetPlan ? targetPlan.name : 'Gratuito',
         subscriptionStatus: editPlanId ? 'active' : 'expired'
       };
 
@@ -279,6 +299,103 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
     }
   };
 
+  // --- MÉTODOS DE CRIAÇÃO E CLONAGEM DE PLANOS ---
+  const handleOpenPlanModal = (plan: Plan | null = null) => {
+    if (plan) {
+      setSelectedPlanForEdit(plan);
+      setPlanName(plan.name);
+      setPlanPrice(plan.price);
+      setLimitCards(plan.limits_json?.max_cards || 5);
+      setLimitPots(plan.limits_json?.max_pots || 3);
+      setLimitCategories(plan.limits_json?.max_categories || 10);
+      setLimitGoals(plan.limits_json?.max_goals || 5);
+      setFeatureAI(plan.features_json?.includes('ai_advisor') || false);
+      setFeatureWeb(plan.features_json?.includes('pc_view') || false);
+      setFeatureBackup(plan.features_json?.includes('cloud_backup') || false);
+    } else {
+      setSelectedPlanForEdit(null);
+      setPlanName('');
+      setPlanPrice(0);
+      setLimitCards(5);
+      setLimitPots(3);
+      setLimitCategories(10);
+      setLimitGoals(5);
+      setFeatureAI(false);
+      setFeatureWeb(true);
+      setFeatureBackup(false);
+    }
+    setCloningPlanId('');
+    setShowPlanModal(true);
+  };
+
+  const handleCloneLimits = () => {
+    if (!cloningPlanId) return;
+    const sourcePlan = plans.find(p => p.id === cloningPlanId);
+    if (!sourcePlan) return;
+    
+    setLimitCards(sourcePlan.limits_json?.max_cards || 5);
+    setLimitPots(sourcePlan.limits_json?.max_pots || 3);
+    setLimitCategories(sourcePlan.limits_json?.max_categories || 10);
+    setLimitGoals(sourcePlan.limits_json?.max_goals || 5);
+    setFeatureAI(sourcePlan.features_json?.includes('ai_advisor') || false);
+    setFeatureWeb(sourcePlan.features_json?.includes('pc_view') || false);
+    setFeatureBackup(sourcePlan.features_json?.includes('cloud_backup') || false);
+    showToast(`Limites do plano "${sourcePlan.name}" copiados com sucesso!`, 'info');
+  };
+
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!planName.trim()) {
+      showToast('O nome do plano é obrigatório', 'error');
+      return;
+    }
+    setSavingPlan(true);
+
+    // Constrói os vetores de features
+    const features: string[] = [];
+    if (featureAI) features.push('ai_advisor');
+    if (featureWeb) features.push('pc_view');
+    if (featureBackup) features.push('cloud_backup');
+
+    const planData = {
+      id: selectedPlanForEdit?.id,
+      name: planName,
+      price: Number(planPrice),
+      limits_json: {
+        max_cards: Number(limitCards),
+        max_pots: Number(limitPots),
+        max_categories: Number(limitCategories),
+        max_goals: Number(limitGoals)
+      },
+      features_json: features,
+      is_active: true
+    };
+
+    try {
+      await adminService.createOrUpdatePlan(user.id, planData);
+      showToast(selectedPlanForEdit ? 'Plano atualizado com sucesso!' : 'Novo plano criado com sucesso!', 'success');
+      setShowPlanModal(false);
+      loadData();
+    } catch (err) {
+      showToast('Erro ao salvar o plano no banco', 'error');
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const handleTogglePlanActive = async (plan: Plan) => {
+    try {
+      await adminService.createOrUpdatePlan(user.id, {
+        ...plan,
+        is_active: !plan.is_active
+      });
+      showToast(plan.is_active ? 'Plano desativado' : 'Plano ativado', 'success');
+      loadData();
+    } catch (e) {
+      showToast('Erro ao atualizar status do plano', 'error');
+    }
+  };
+
   // Filtragem avançada incluindo Pendente e Novos Cadastros
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -342,6 +459,12 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
           className={`pb-4 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all whitespace-nowrap ${activeTab === 'users' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
         >
           Usuários & CRM
+        </button>
+        <button 
+          onClick={() => setActiveTab('plans')}
+          className={`pb-4 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all whitespace-nowrap ${activeTab === 'plans' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+        >
+          Gestão de Planos
         </button>
         <button 
           onClick={() => setActiveTab('gateway')}
@@ -610,7 +733,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                                   u.subscriptionStatus === 'active' ? 'text-emerald-600' : 
                                   u.subscriptionStatus === 'trial' ? 'text-indigo-600' : 'text-slate-500'
                                 }`}>
-                                  {u.subscriptionStatus === 'active' ? 'Assinante' : u.subscriptionStatus === 'trial' ? 'Trial 7 Dias' : 'Gratuito'}
+                                  {plans.find(p => p.id === u.plan_id)?.name || u.plan || 'Gratuito'}
                                 </span>
                               </div>
                               {u.subscriptionStatus === 'trial' && u.trialEndsAt && (
@@ -708,7 +831,109 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
             </div>
           )}
 
-          {/* TAB 3: GATEWAY & WEBHOOKS */}
+          {/* TAB 3: GESTÃO DE PLANOS */}
+          {activeTab === 'plans' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="flex justify-between items-center bg-white dark:bg-[#0a0c14] p-6 rounded-[2rem] border border-slate-200 dark:border-white/5 shadow-sm">
+                <div>
+                  <h3 className="text-xs font-black uppercase text-slate-900 dark:text-white tracking-wider flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-indigo-500" /> Grade de Planos do ZenOS SaaS
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Configuração de Limites, IA, Backup e Computador</p>
+                </div>
+                <button 
+                  onClick={() => handleOpenPlanModal(null)}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                >
+                  <ListPlus className="w-4 h-4" />
+                  Criar Novo Plano
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {plans.map(p => {
+                  const hasAI = p.features_json?.includes('ai_advisor');
+                  const hasWeb = p.features_json?.includes('pc_view');
+                  const hasBackup = p.features_json?.includes('cloud_backup');
+
+                  return (
+                    <div 
+                      key={p.id} 
+                      className={`bg-white dark:bg-[#0a0c14] rounded-[2.5rem] border ${p.is_active ? 'border-slate-200 dark:border-white/5' : 'border-slate-300/40 opacity-60'} shadow-sm overflow-hidden flex flex-col p-6 space-y-6 relative`}
+                    >
+                      {/* Price header */}
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">{p.name}</h4>
+                          <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">
+                            R$ {p.price.toFixed(2)}
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-normal">/mês</span>
+                          </h3>
+                        </div>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${p.is_active ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                          {p.is_active ? 'Ativo' : 'Pausado'}
+                        </span>
+                      </div>
+
+                      {/* Limits grid */}
+                      <div className="bg-slate-50 dark:bg-slate-950/40 p-4 rounded-3xl border border-slate-100 dark:border-white/5 grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Cartões Máx.</p>
+                          <p className="font-bold text-slate-800 dark:text-white text-sm">{p.limits_json?.max_cards || 'Ilimitados'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Potes Máx.</p>
+                          <p className="font-bold text-slate-800 dark:text-white text-sm">{p.limits_json?.max_pots || 'Ilimitados'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Categorias</p>
+                          <p className="font-bold text-slate-800 dark:text-white text-sm">{p.limits_json?.max_categories || 'Ilimitadas'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Metas Máx.</p>
+                          <p className="font-bold text-slate-800 dark:text-white text-sm">{p.limits_json?.max_goals || 'Ilimitadas'}</p>
+                        </div>
+                      </div>
+
+                      {/* Features list */}
+                      <div className="space-y-2 text-xs flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 font-bold">Acesso Zenos IA</span>
+                          <span className={hasAI ? 'text-emerald-500 font-black' : 'text-slate-400'}>{hasAI ? 'SIM' : 'NÃO'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 font-bold">Visualização no PC</span>
+                          <span className={hasWeb ? 'text-emerald-500 font-black' : 'text-slate-400'}>{hasWeb ? 'SIM' : 'NÃO'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 font-bold">Backup Nuvem</span>
+                          <span className={hasBackup ? 'text-emerald-500 font-black' : 'text-slate-400'}>{hasBackup ? 'SIM' : 'NÃO'}</span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-white/5">
+                        <button 
+                          onClick={() => handleTogglePlanActive(p)}
+                          className="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 rounded-xl text-[9px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 transition-all text-center"
+                        >
+                          {p.is_active ? 'Pausar Vendas' : 'Ativar Vendas'}
+                        </button>
+                        <button 
+                          onClick={() => handleOpenPlanModal(p)}
+                          className="flex-1 py-2 px-3 bg-indigo-600/10 hover:bg-indigo-600/20 rounded-xl text-[9px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 transition-all text-center"
+                        >
+                          Editar Plano
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: GATEWAY & WEBHOOKS */}
           {activeTab === 'gateway' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-300">
               {/* Webhooks Log */}
@@ -765,7 +990,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
             </div>
           )}
 
-          {/* TAB 4: SECURITY & SUPPORT */}
+          {/* TAB 5: SECURITY & SUPPORT */}
           {activeTab === 'security' && (
             <div className="space-y-8 animate-in fade-in duration-300">
               {/* Health Check */}
@@ -862,7 +1087,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
 
       {/* MODAL DE CONTROLE DE USUÁRIO (VISÃO 360º) */}
       {selectedUser && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-slate-955/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#0a0c14] border border-slate-200 dark:border-white/5 rounded-[2.5rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in scale-in duration-200">
             {/* Modal Header */}
             <div className="p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50 dark:bg-slate-950/20">
@@ -885,7 +1110,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-8 flex-1">
-              {/* Telemetria de Uso (Dados Reais do Supabase) */}
+              {/* Telemetria de Uso */}
               <div className="space-y-3">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Activity className="w-3.5 h-3.5" /> Consumo de Recursos Real no Banco (Telemetria)
@@ -1009,7 +1234,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                   </div>
                 </div>
 
-                {/* Ações Avançadas de Senha e Benefícios */}
+                {/* Ações Avançadas */}
                 <div className="bg-slate-50 dark:bg-slate-950/40 p-5 rounded-3xl border border-slate-100 dark:border-white/5 space-y-4">
                   <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                     <Settings2 className="w-4 h-4 text-indigo-500" /> Ações de Suporte e Benefícios
@@ -1067,6 +1292,207 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                       Salvar Alterações
                     </button>
                   </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CRIAÇÃO E CONFIGURAÇÃO DE PLANO (SAAS) */}
+      {showPlanModal && (
+        <div className="fixed inset-0 bg-slate-955/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0a0c14] border border-slate-200 dark:border-white/5 rounded-[2.5rem] shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in scale-in duration-200">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50 dark:bg-slate-950/20">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 rounded-2xl">
+                  <Crown className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-tight">
+                    {selectedPlanForEdit ? 'Editar Plano SaaS' : 'Criar Novo Plano'}
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Defina preços, limites de recursos e features</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowPlanModal(false)}
+                className="p-2 hover:bg-slate-200 dark:hover:bg-white/5 rounded-xl transition-all"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              {/* Opção de Clonagem (Apenas se houver outros planos e for criação) */}
+              {!selectedPlanForEdit && plans.length > 0 && (
+                <div className="bg-slate-50 dark:bg-slate-950/40 p-4 rounded-3xl border border-slate-100 dark:border-white/5 space-y-2">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                    <Copy className="w-3 h-3 text-indigo-500" /> Copiar limites do plano anterior
+                  </label>
+                  <div className="flex gap-2">
+                    <select 
+                      className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={cloningPlanId}
+                      onChange={e => setCloningPlanId(e.target.value)}
+                    >
+                      <option value="">Selecione um plano para clonar...</option>
+                      {plans.map(p => (
+                        <option key={p.id} value={p.id}>{p.name} - R$ {p.price.toFixed(2)}</option>
+                      ))}
+                    </select>
+                    <button 
+                      type="button"
+                      onClick={handleCloneLimits}
+                      disabled={!cloningPlanId}
+                      className="px-4 py-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase tracking-wider rounded-xl transition-all"
+                    >
+                      Clonar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleSavePlan} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Nome do Plano */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Nome do Plano</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={planName}
+                      onChange={e => setPlanName(e.target.value)}
+                      placeholder="Ex: Plano Intermediário"
+                    />
+                  </div>
+
+                  {/* Preço Mensal */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Mensalidade (R$)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={planPrice}
+                      onChange={e => setPlanPrice(Number(e.target.value))}
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  {/* Limite de Cartões */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Cartões de Crédito Máx.</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={limitCards}
+                      onChange={e => setLimitCards(Number(e.target.value))}
+                    />
+                  </div>
+
+                  {/* Limite de Potes */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Potes/Contas Máx.</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={limitPots}
+                      onChange={e => setLimitPots(Number(e.target.value))}
+                    />
+                  </div>
+
+                  {/* Limite de Categorias */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Categorias Máx.</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={limitCategories}
+                      onChange={e => setLimitCategories(Number(e.target.value))}
+                    />
+                  </div>
+
+                  {/* Limite de Metas */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Metas Financeiras Máx.</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={limitGoals}
+                      onChange={e => setLimitGoals(Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+
+                {/* Features Adicionais (Switches) */}
+                <div className="bg-slate-50 dark:bg-slate-950/40 p-5 rounded-3xl border border-slate-100 dark:border-white/5 space-y-4">
+                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Features Habilitadas no Plano</h4>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">Acesso ao Zenos IA</p>
+                        <p className="text-[9px] text-slate-400">Permite usar o chat de inteligência artificial e comandos por voz.</p>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => setFeatureAI(!featureAI)}
+                        className={`text-indigo-600 transition-all ${featureAI ? 'opacity-100' : 'opacity-40'}`}
+                      >
+                        {featureAI ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">Acesso via Computador (PC View)</p>
+                        <p className="text-[9px] text-slate-400">Habilita visualização e uso em resoluções desktop.</p>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => setFeatureWeb(!featureWeb)}
+                        className={`text-indigo-600 transition-all ${featureWeb ? 'opacity-100' : 'opacity-40'}`}
+                      >
+                        {featureWeb ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">Backup na Nuvem automático</p>
+                        <p className="text-[9px] text-slate-400">Sincroniza transações e notas de forma persistente e instantânea.</p>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => setFeatureBackup(!featureBackup)}
+                        className={`text-indigo-600 transition-all ${featureBackup ? 'opacity-100' : 'opacity-40'}`}
+                      >
+                        {featureBackup ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Modal Plan */}
+                <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-white/5">
+                  <button 
+                    type="button"
+                    onClick={() => setShowPlanModal(false)}
+                    className="py-3 px-5 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={savingPlan}
+                    className="py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-1.5"
+                  >
+                    {savingPlan && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    Salvar Plano
+                  </button>
                 </div>
               </form>
             </div>

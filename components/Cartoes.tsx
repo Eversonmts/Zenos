@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, X, Trash2, Edit2, CreditCard as CardIcon, ChevronDown, ChevronUp, Check } from 'lucide-react';
-import { CreditCard, Debt, Account } from '../types';
+import { CreditCard, Debt, Account, Profile, Plan } from '../types';
 import { formatCurrency, formatDisplayDate } from '../lib/utils';
 
 interface CartoesProps {
@@ -11,11 +11,17 @@ interface CartoesProps {
   onUpdateCards: (cards: CreditCard[]) => void;
   onDeleteCard: (id: string) => void;
   onPayInvoice: (debtIds: string[], accountId: string, amount: number) => void;
+  activeUser: Profile;
+  activePlan: Plan | null;
+  showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
 const CARD_COLORS = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
-export default function Cartoes({ cards, debts, accounts, userId, onUpdateCards, onDeleteCard, onPayInvoice }: CartoesProps) {
+export default function Cartoes({ 
+  cards, debts, accounts, userId, onUpdateCards, onDeleteCard, onPayInvoice,
+  activeUser, activePlan, showToast 
+}: CartoesProps) {
   const [showCardModal, setShowCardModal] = useState(false);
   const [editingCard, setEditingCard] = useState<Partial<CreditCard> | null>(null);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
@@ -37,6 +43,13 @@ export default function Cartoes({ cards, debts, accounts, userId, onUpdateCards,
   }, [debts]);
 
   const openAddCard = () => {
+    // Validação de Limites de Cota de Cartões (Administradores são isentos)
+    const maxCards = activePlan?.limits_json?.max_cards || 99;
+    if (activeUser.role !== 'admin' && cards.length >= maxCards) {
+      showToast(`Limite atingido! O plano ${activePlan?.name || 'Básico'} permite no máximo ${maxCards} cartão(ões). Faça upgrade para desbloquear mais.`, 'error');
+      return;
+    }
+
     setEditingCard({ name: '', last_4_digits: '', limit: 0, closing_day: 5, due_day: 12, color: CARD_COLORS[cards.length % CARD_COLORS.length] });
     setShowCardModal(true);
   };
@@ -115,7 +128,7 @@ export default function Cartoes({ cards, debts, accounts, userId, onUpdateCards,
           const cardInvoices = invoicesByCard[card.id] || {};
           const monthKeys = Object.keys(cardInvoices).sort();
           const isExpanded = expandedCardId === card.id;
-          const totalOpen = Object.values(cardInvoices).flat().filter(d => d.status !== 'paid').reduce((s, d) => s + (d.total_amount - d.paid_amount), 0);
+          const totalOpen = (Object.values(cardInvoices).flat() as Debt[]).filter(d => d.status !== 'paid').reduce((s, d) => s + (d.total_amount - d.paid_amount), 0);
 
           return (
             <div key={card.id} className="bg-white dark:bg-[#111827]/60 border border-slate-200 dark:border-white/5 rounded-[2.5rem] overflow-hidden">

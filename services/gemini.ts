@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { FinancialData } from "../types";
 
@@ -22,6 +21,11 @@ const withTimeout = (promise: Promise<any>, timeoutMs: number = 15000) => {
 };
 
 export const getFinancialAdvice = async (data: FinancialData, userQuery: string) => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    return "Sua chave de API do Google Gemini não está configurada. Por favor, insira e salve sua API Key para ativar o Zenos IA.";
+  }
+
   const ai = getAI();
   
   const contextSummary = {
@@ -33,12 +37,12 @@ export const getFinancialAdvice = async (data: FinancialData, userQuery: string)
   };
 
   const systemInstruction = `
-    Você é o ZenOS Master Assistant, um assistente financeiro de elite.
+    Você é o Zenos IA, um assistente financeiro de inteligência artificial altamente avançado.
     
-    ESTADO ATUAL:
+    ESTADO ATUAL DO USUÁRIO:
     - Saldo Total: R$ ${contextSummary.balance}
-    - Contas: ${contextSummary.accounts}
-    - Categorias conhecidas: ${contextSummary.categories.join(', ')}
+    - Contas/Potes: ${contextSummary.accounts}
+    - Categorias de gastos: ${contextSummary.categories.join(', ')}
     
     COMANDOS ESPECIAIS:
     Se o usuário pedir para registrar um gasto ou entrada (ex: "gastei 50 com café" ou "recebi 2000 de bônus"), você deve responder normalmente mas incluir no FINAL da resposta um bloco JSON exatamente com este formato para que o sistema processe:
@@ -54,14 +58,14 @@ export const getFinancialAdvice = async (data: FinancialData, userQuery: string)
     }
 
     DIRETRIZES:
-    - Seja conciso e executivo.
-    - Use Markdown.
-    - Responda em Português (Brasil).
+    - Seja conciso, direto e executivo.
+    - Use Markdown para respostas estruturadas.
+    - Responda SEMPRE em Português (Brasil).
   `;
 
   try {
     const response = await withTimeout(ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-2.5-flash',
       contents: userQuery,
       config: {
         systemInstruction: systemInstruction,
@@ -69,31 +73,37 @@ export const getFinancialAdvice = async (data: FinancialData, userQuery: string)
       },
     }));
 
-    return response.text;
+    return response.text || "Sem resposta.";
   } catch (error: any) {
     if (error.message === 'TIMEOUT') {
-      return "O ZenOS está levando mais tempo do que o esperado para responder. Por favor, tente novamente em instantes.";
+      return "O Zenos IA está levando mais tempo do que o esperado para responder. Por favor, tente novamente em instantes.";
     }
-    console.error("ZenOS AI Error:", error);
-    return "Falha na conexão neural. Verifique sua conexão ou tente novamente.";
+    console.error("Zenos IA Error:", error);
+    
+    if (error.message?.includes('API_KEY_INVALID') || error.status === 400 || error.status === 403) {
+      return "Erro de Autenticação: Sua chave de API do Gemini está inválida. Por favor, verifique a chave inserida.";
+    }
+    
+    return "Falha na conexão com o Zenos IA. Verifique sua chave de API ou conexão à internet e tente novamente.";
   }
 };
 
 export const analyzeReceipt = async (base64Image: string) => {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
   const ai = getAI();
 
   try {
     const response = await withTimeout(ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: {
-        parts: [
-          { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-          { text: `Analise este cupom fiscal ou imagem financeira. Extraia os dados para criar uma transação.
+      model: 'gemini-2.5-flash',
+      contents: [
+        { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
+        { text: `Analise este cupom fiscal ou imagem financeira. Extraia os dados para criar uma transação.
              Identifique se é: Mercado, Padaria, Posto de Gasolina, Farmácia, Restaurante, etc.
              Retorne APENAS um JSON válido seguindo o esquema fornecido.`
-          }
-        ]
-      },
+        }
+      ],
       config: {
         temperature: 0.1,
         responseMimeType: 'application/json',
@@ -122,23 +132,24 @@ export const analyzeReceipt = async (base64Image: string) => {
 };
 
 export const analyzeAudioCommand = async (base64Audio: string) => {
+  const apiKey = getApiKey();
+  if (!apiKey) return null;
+
   const ai = getAI();
 
   try {
     const response = await withTimeout(ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: {
-        parts: [
-          { inlineData: { mimeType: 'audio/webm', data: base64Audio } }, 
-          { text: `Ouça este comando de voz financeiro. Extraia a intenção de transação.
-             REGRAS:
-             - Se contiver "Gastei", "Comprei", "Paguei", "Saiu" -> type: "expense"
-             - Se contiver "Recebi", "Ganhei", "Entrou", "Depósito" -> type: "income"
-             
-             Retorne APENAS um JSON válido.`
-          }
-        ]
-      },
+      model: 'gemini-2.5-flash',
+      contents: [
+        { inlineData: { mimeType: 'audio/webm', data: base64Audio } }, 
+        { text: `Ouça este comando de voz financeiro. Extraia a intenção de transação.
+           REGRAS:
+           - Se contiver "Gastei", "Comprei", "Paguei", "Saiu" -> type: "expense"
+           - Se contiver "Recebi", "Ganhei", "Entrou", "Depósito" -> type: "income"
+           
+           Retorne APENAS um JSON válido.`
+        }
+      ],
       config: {
         responseMimeType: 'application/json',
         responseSchema: {

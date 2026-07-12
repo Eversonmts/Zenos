@@ -23,9 +23,8 @@ import CalendarView from './components/Calendar';
 import Cartoes from './components/Cartoes';
 import CardExpenseModal from './components/CardExpenseModal';
 import Budgets from './components/Budgets';
-import Budgets from './components/Budgets';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
-import AIAdvisor from './components/AIAdvisor';
+import ZenosIA from './components/ZenosIA';
 import ZenOSLogo from './components/ZenOSLogo';
 import { analyzeReceipt, analyzeAudioCommand } from './services/gemini';
 import { initializeAuth, logout as authLogout, updateProfileData } from './services/auth';
@@ -440,7 +439,7 @@ export default function App() {
     { id: 'journal', label: 'Diário', icon: Book, section: 'PRODUTIVIDADE' },
     { id: 'calendar', label: 'Calendário', icon: CalendarIcon, section: 'PRODUTIVIDADE' },
     { id: 'analytics', label: 'Análise', icon: BarChart2, section: 'INTELIGÊNCIA' },
-    { id: 'advisor', label: 'Zen Advisor', icon: BrainCircuit, section: 'INTELIGÊNCIA' },
+    { id: 'advisor', label: 'Zenos IA', icon: BrainCircuit, section: 'INTELIGÊNCIA' },
     { id: 'settings', label: 'Ajustes', icon: SettingsIcon, section: 'SISTEMA' },
     { id: 'admin', label: 'Admin', icon: Shield, section: 'SISTEMA', adminOnly: true },
   ];
@@ -558,7 +557,7 @@ export default function App() {
   const handleUpdateDebts = (updatedDebts: Debt[]) => {
       if(!activeUser) return;
       setDebts(prev => {
-        const map = new Map(prev.map(d => [d.id, d]));
+        const map = new Map<string, Debt>(prev.map(d => [d.id, d]));
         updatedDebts.forEach(d => map.set(d.id, d));
         const merged = Array.from(map.values());
         db.saveDebts(activeUser.id, merged).catch(err => console.error("Failed to save debts:", err));
@@ -1037,10 +1036,10 @@ export default function App() {
                 <div className="space-y-1">
                   {items.map((item) => (
                     <button key={item.id} onClick={() => {
-                        if (item.id === 'categories') { setView('settings'); setSettingsTab('categories'); }
+                        if ((item.id as string) === 'categories') { setView('settings'); setSettingsTab('categories'); }
                         else setView(item.id);
                         setIsSidebarOpen(false);
-                      }} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all min-h-[44px] ${view === item.id || (item.id === 'categories' && view === 'settings' && settingsTab === 'categories') ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/10' : 'text-[#4e545a] dark:text-slate-600 hover:text-[#212529] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'}`}>
+                      }} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all min-h-[44px] ${view === item.id || ((item.id as string) === 'categories' && view === 'settings' && settingsTab === 'categories') ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/10' : 'text-[#4e545a] dark:text-slate-600 hover:text-[#212529] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'}`}>
                       <item.icon className={`w-5 h-5 flex-shrink-0 ${view === item.id ? 'text-white' : ''}`} />
                       <span className="font-bold text-sm lg:hidden xl:block flex items-center gap-1.5">
                         {item.label}
@@ -1164,6 +1163,9 @@ export default function App() {
                   updateAndSave((prev: CreditCard[]) => prev.filter(c => c.id !== id), setCards, db.saveCards);
                 }}
                 onPayInvoice={handleInvoicePayment}
+                activeUser={activeUser}
+                activePlan={plans.find(p => p.id === activeUser?.plan_id) || plans.find(p => p.name === activeUser?.plan) || null}
+                showToast={showToast}
               />
             )}
             {view === 'budgets' as any && (
@@ -1189,6 +1191,9 @@ export default function App() {
                 onUpdate={(newAccounts: Account[]) => {
                   updateAndSave(() => newAccounts, setAccounts, db.saveAccounts);
                 }} 
+                activeUser={activeUser}
+                activePlan={plans.find(p => p.id === activeUser?.plan_id) || plans.find(p => p.name === activeUser?.plan) || null}
+                showToast={showToast}
               />
             )}
             {view === 'goals' && (
@@ -1259,7 +1264,7 @@ export default function App() {
               />
             )}
             {view === 'advisor' && (
-              <AIAdvisor 
+              <ZenosIA 
                 data={{
                   transactions,
                   categories,
@@ -1270,10 +1275,13 @@ export default function App() {
                   notes,
                   journal: journalEntries
                 } as any}
+                activeUser={activeUser}
+                activePlan={plans.find(p => p.id === activeUser?.plan_id) || plans.find(p => p.name === activeUser?.plan) || null}
                 onTransactionCommand={(t) => {
                    handleAddTransaction(t);
                    setView('transactions');
                 }}
+                showToast={showToast}
               />
             )}
             {view === 'settings' && (
@@ -1290,6 +1298,7 @@ export default function App() {
                 profile={activeUser}
                 onUpdateProfile={handleUpdateUser}
                 initialTab={settingsTab}
+                activePlan={plans.find(p => p.id === activeUser?.plan_id) || plans.find(p => p.name === activeUser?.plan) || null}
               />
             )}
             {view === 'admin' && activeUser?.role === 'admin' && (
