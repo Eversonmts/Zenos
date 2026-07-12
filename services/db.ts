@@ -264,11 +264,22 @@ export const db = {
   refreshFromSupabase: async (userId: string) => {
     if (!navigator.onLine || isTestUser(userId)) return;
     try {
+      // Force a session check first. If the access token is expired, this
+      // refreshes it using the refresh token before we touch any table -
+      // prevents a stale JWT from causing every query to fail at once.
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        console.warn("Sessao invalida ao atualizar em segundo plano, abortando refresh:", sessionError);
+        return; // do NOT touch local cache
+      }
+
       const freshData = await fetchAllFromSupabase(userId);
       saveLocalData(userId, freshData);
       setSyncStatus('synced');
     } catch (error) {
-      console.warn("Background refresh from Supabase failed:", error);
+      // Any failure here (including JWT expired thrown above) must leave the
+      // existing local cache untouched.
+      console.warn("Background refresh from Supabase failed, cache local preservado:", error);
     }
   },
 
@@ -557,20 +568,19 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
   const tables = ['categories', 'subcategories', 'accounts', 'transactions', 'goals', 'debts', 'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards', 'shopping_list' as any] as const;
 
   const fetchPromises = tables.map(async (table) => {
-    try {
-      const { data, error } = await supabase.from(table).select('*').eq('user_id', userId);
-      if (error) {
-        if (error.code === 'PGRST114' || (error.message?.includes('relation') && error.message?.includes('does not exist'))) {
-          console.warn(`Tabela ${table} nao encontrada no Supabase. Retornando dados vazios.`);
-          return [];
-        }
-        throw error;
+    const { data, error } = await supabase.from(table).select('*').eq('user_id', userId);
+    if (error) {
+      if (error.code === 'PGRST114' || (error.message?.includes('relation') && error.message?.includes('does not exist'))) {
+        console.warn(`Tabela ${table} nao encontrada no Supabase. Retornando dados vazios.`);
+        return [];
       }
-      return data || [];
-    } catch (e) {
-      console.error(`Erro ao carregar tabela ${table} do Supabase:`, e);
-      return [];
+      // Auth/session errors (expired or invalid JWT) must NOT be treated as "no data" -
+      // doing so would let an empty result silently overwrite the local cache.
+      // Throw so the caller can abort the refresh instead.
+      console.error(`Erro ao carregar tabela ${table} do Supabase:`, error);
+      throw error;
     }
+    return data || [];
   });
 
   const results = await Promise.all(fetchPromises);
