@@ -319,3 +319,75 @@ export interface FinancialData {
   budgets: Budget[];
   settings: Settings[];
 }
+
+export interface AdminSettings {
+  id: string;
+  cac_value: number;
+  marketing_costs: number;
+  fee_operational_pct: number;
+  fee_profit_pct: number;
+  fee_reserve_pct: number;
+  updated_at: string;
+}
+
+export interface GatewayWebhook {
+  id: string;
+  gateway: string;
+  event_type: string;
+  payload: Record<string, any>;
+  status: 'processed' | 'error' | 'pending';
+  created_at: string;
+}
+
+export interface DunningAttempt {
+  id: string;
+  user_id: string;
+  subscription_id: string;
+  attempt_number: number;
+  status: string;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface BillingReceipt {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  invoice_url: string | null;
+  payment_method: string | null;
+  billing_date: string;
+  created_at: string;
+}
+
+export interface UserUsageQuota {
+  id: string;
+  user_id: string;
+  resource_name: string;
+  current_count: number;
+  limit_count: number;
+  updated_at: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  user_id: string;
+  subject: string;
+  description: string;
+  status: 'open' | 'resolved' | 'closed';
+  priority: 'high' | 'normal' | 'low';
+  created_at: string;
+  updated_at: string;
+  user_email?: string;
+  user_name?: string;
+  user_is_pro?: boolean;
+}
+
+export interface SystemHealthCheck {
+  id: string;
+  service_name: string;
+  status: 'healthy' | 'degraded' | 'offline';
+  latency_ms: number;
+  checked_at: string;
+}
+

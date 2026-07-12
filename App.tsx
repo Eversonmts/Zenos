@@ -1298,6 +1298,18 @@ export default function App() {
                 onLogout={handleLogout}
                 showToast={showToast}
                 onBack={() => setView('dashboard')}
+                onSimulateUser={async (userId) => {
+                  localStorage.setItem('zen_simulated_user', userId);
+                  const sUser = await db.users.getById(userId);
+                  if (sUser) {
+                    setSimulatedUser(sUser);
+                    await loadUserData(userId);
+                    setView('dashboard');
+                    showToast(`Simulando sessão de ${sUser.full_name || sUser.email}`, "success");
+                  } else {
+                    showToast("Usuário não encontrado para simulação", "error");
+                  }
+                }}
               />
             )}
           </div>
