@@ -65,7 +65,7 @@ export const getFinancialAdvice = async (data: FinancialData, userQuery: string)
 
   try {
     const response = await withTimeout(ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: userQuery,
       config: {
         systemInstruction: systemInstruction,
@@ -80,6 +80,11 @@ export const getFinancialAdvice = async (data: FinancialData, userQuery: string)
     }
     console.error("Zenos IA Error:", error);
     
+    // Tratamento estendido e claro de limites de cota
+    if (error.message?.includes('Quota exceeded') || error.message?.includes('RESOURCE_EXHAUSTED') || error.status === 429) {
+      return "Cota Esgotada: A chave de API do Gemini fornecida excedeu a cota de uso do plano gratuito do Google. Por favor, tente novamente mais tarde ou configure outra chave de API ativa.";
+    }
+
     if (error.message?.includes('API_KEY_INVALID') || error.status === 400 || error.status === 403) {
       return "Erro de Autenticação: Sua chave de API do Gemini está inválida. Por favor, verifique a chave inserida.";
     }
@@ -96,7 +101,7 @@ export const analyzeReceipt = async (base64Image: string) => {
 
   try {
     const response = await withTimeout(ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: [
         { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
         { text: `Analise este cupom fiscal ou imagem financeira. Extraia os dados para criar uma transação.
@@ -139,7 +144,7 @@ export const analyzeAudioCommand = async (base64Audio: string) => {
 
   try {
     const response = await withTimeout(ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: [
         { inlineData: { mimeType: 'audio/webm', data: base64Audio } }, 
         { text: `Ouça este comando de voz financeiro. Extraia a intenção de transação.
