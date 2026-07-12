@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Wallet, TrendingUp, Plus, Minus, PieChart as PieChartIcon, BarChart3, Activity, AlertTriangle, CheckCircle2, Hourglass, X, ArrowUpCircle, ArrowDownCircle, ChevronLeft, ChevronRight, Trophy, ArrowUpRight, Target, Settings, Eye, EyeOff, MoveUp, MoveDown, Gift, ChevronDown, Crown, Search } from 'lucide-react';
+import { Wallet, TrendingUp, Plus, Minus, PieChart as PieChartIcon, BarChart3, Activity, AlertTriangle, CheckCircle2, Hourglass, X, ArrowUpCircle, ArrowDownCircle, ChevronLeft, ChevronRight, Trophy, ArrowUpRight, Target, Settings, Eye, EyeOff, MoveUp, MoveDown, Gift, ChevronDown, Crown, Search, Sparkles } from 'lucide-react';
 import { FinancialData, Account, Transaction, DashboardLayoutItem, Profile, AppView } from '../types';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, 
@@ -19,6 +19,7 @@ interface DashboardProps {
   totalBalance?: number;
   totalMonthlyIncome?: number;
   monthExpenses?: number;
+  onOpenAIScanner?: () => void;
 }
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4'];
@@ -38,7 +39,8 @@ export default function Dashboard({
   data, user, layout, onUpdateLayout, onNavigate, onAddDebt, onQuickAction,
   totalBalance: propTotalBalance, 
   totalMonthlyIncome: propTotalMonthlyIncome, 
-  monthExpenses: propMonthExpenses 
+  monthExpenses: propMonthExpenses,
+  onOpenAIScanner
 }: DashboardProps) {
   const { transactions, accounts, debts, goals, tasks, notes, journal, budgets } = data;
   
@@ -228,12 +230,14 @@ export default function Dashboard({
                 <ChevronDown className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
               </button>
 
-              <div className="relative">
-                <div className="w-12 h-12 rounded-full bg-[#6f42c1] flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                  <Gift className="w-6 h-6 text-white" />
-                </div>
+              <button 
+                onClick={onOpenAIScanner}
+                className="relative w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 hover:scale-105 active:scale-95 transition-all group"
+                title="Zenos IA Scanner"
+              >
+                <Sparkles className="w-5 h-5 text-white animate-pulse" />
                 <div className="absolute top-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-[#0a0c14]"></div>
-              </div>
+              </button>
             </div>
 
             {/* Middle Section: Balance */}

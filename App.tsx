@@ -26,6 +26,7 @@ import Budgets from './components/Budgets';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import ZenosIA from './components/ZenosIA';
 import ZenOSLogo from './components/ZenOSLogo';
+import ZenosIAScannerModal from './components/ZenosIAScannerModal';
 import { analyzeReceipt, analyzeAudioCommand } from './services/gemini';
 import { initializeAuth, logout as authLogout, updateProfileData } from './services/auth';
 import { db, onSyncStatusChange, SyncStatus } from './services/db';
@@ -100,6 +101,7 @@ export default function App() {
   const [transactionAllocations, setTransactionAllocations] = useState<TransactionAllocation[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [showCardExpenseModal, setShowCardExpenseModal] = useState(false);
+  const [isAIScannerOpen, setIsAIScannerOpen] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -969,6 +971,20 @@ export default function App() {
           }}
         />
       )}
+      
+      {isAIScannerOpen && activeUser && (
+        <ZenosIAScannerModal
+          isOpen={isAIScannerOpen}
+          onClose={() => setIsAIScannerOpen(false)}
+          accounts={processedAccounts}
+          categories={categories}
+          activeUser={activeUser}
+          activePlan={plans.find(p => p.id === activeUser?.plan_id) || plans.find(p => p.name === activeUser?.plan) || null}
+          onAddTransaction={handleAddTransaction}
+          showToast={showToast}
+        />
+      )}
+
       {isProcessing && (
         <div className="fixed inset-0 z-[100] bg-white/80 dark:bg-black/80 backdrop-blur-md flex items-center justify-center flex-col gap-6 p-6 text-center">
           <div className="relative">
@@ -1114,6 +1130,7 @@ export default function App() {
                   setView('transactions');
                   setTxFilter(type);
                 }}
+                onOpenAIScanner={() => setIsAIScannerOpen(true)}
               />
             )}
             {view === 'transactions' && (
