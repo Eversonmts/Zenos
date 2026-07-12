@@ -4,7 +4,8 @@ import {
   Search, Filter, MoreVertical, Ban, CheckCircle, 
   Trash2, RefreshCw, Loader2, ArrowLeft, Activity, 
   Eye, HelpCircle, HardDrive, Settings2, 
-  Clock, CheckCircle2, Globe
+  Clock, CheckCircle2, Globe, Sparkles, AlertCircle, 
+  KeyRound, Mail, User, Phone, Check, X, ShieldCheck
 } from 'lucide-react';
 import { Profile, Plan, UserStatus, GatewayWebhook, DunningAttempt, BillingReceipt, SupportTicket, SystemHealthCheck, AdminLog } from '../../types';
 import { adminService } from '../../services/adminService';
@@ -41,9 +42,24 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
   const [feeReservePct, setFeeReservePct] = useState(20);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filter, setFilter] = useState<'all' | 'active' | 'blocked' | 'pro'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'blocked' | 'pro' | 'pending_payment' | 'new_users'>('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // States para o modal de controle do usuário (Visão 360º)
+  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const [userUsage, setUserUsage] = useState<{ transactions: number, accounts: number, goals: number, debts: number } | null>(null);
+  const [loadingUsage, setLoadingUsage] = useState(false);
+  
+  // Form states de edição do usuário no modal
+  const [editEmail, setEditEmail] = useState('');
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editPlanId, setEditPlanId] = useState('');
+  const [editStatus, setEditStatus] = useState<UserStatus>('active');
+  const [editRole, setEditRole] = useState<'user' | 'admin'>('user');
+  const [savingUser, setSavingUser] = useState(false);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -124,6 +140,81 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
     }
   };
 
+  // Abre o Modal de Controle do Usuário e carrega métricas de uso reais
+  const handleOpenUserModal = async (u: Profile) => {
+    setSelectedUser(u);
+    setEditEmail(u.email);
+    setEditFullName(u.full_name || '');
+    setEditPhone(u.phone || '');
+    setEditPlanId(u.plan_id || '');
+    setEditStatus(u.status);
+    setEditRole(u.role);
+    
+    setLoadingUsage(true);
+    setUserUsage(null);
+    try {
+      const stats = await adminService.getUserUsageStats(u.id);
+      setUserUsage(stats);
+    } catch (e) {
+      console.error("Failed to load user usage stats");
+    } finally {
+      setLoadingUsage(false);
+    }
+  };
+
+  // Salva alterações cadastrais do modal 360º
+  const handleSaveUserDetail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    setSavingUser(true);
+    try {
+      // 1. Atualização de E-mail
+      if (editEmail !== selectedUser.email) {
+        await adminService.updateUserEmail(user.id, selectedUser.id, editEmail);
+      }
+      
+      // 2. Atualização dos outros campos (Nome, Status, Plano, Telefone, Role)
+      const updatedProfile: Partial<Profile> = {
+        id: selectedUser.id,
+        full_name: editFullName,
+        phone: editPhone,
+        status: editStatus,
+        role: editRole,
+        plan_id: editPlanId || null,
+        plan: plans.find(p => p.id === editPlanId)?.name || 'Gratuito',
+        subscriptionStatus: editPlanId ? 'active' : 'expired'
+      };
+
+      await db.users.update(updatedProfile);
+      
+      // Salva log de auditoria
+      await adminService.createAuditLog(user.id, 'update_user_details', selectedUser.id, `Nome: ${editFullName}, Status: ${editStatus}, Plano: ${updatedProfile.plan}`);
+      
+      showToast('Dados do usuário atualizados com sucesso!', 'success');
+      setSelectedUser(null);
+      loadData();
+    } catch (error) {
+      showToast('Erro ao salvar alterações do usuário', 'error');
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
+  // Envia email de redefinição de senha real
+  const handleSendResetPassword = async () => {
+    if (!selectedUser) return;
+    setResetPasswordLoading(true);
+    try {
+      await adminService.sendResetPasswordEmail(selectedUser.email);
+      await adminService.createAuditLog(user.id, 'reset_user_password_sent', selectedUser.id, `E-mail de reconfiguração enviado para: ${selectedUser.email}`);
+      showToast('E-mail de redefinição enviado com sucesso!', 'success');
+    } catch (e) {
+      showToast('Erro ao enviar e-mail de redefinição', 'error');
+    } finally {
+      setResetPasswordLoading(false);
+    }
+  };
+
   const handleToggleBlock = async (userId: string, currentStatus: UserStatus) => {
     setActionLoading(userId);
     try {
@@ -156,6 +247,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
     try {
       await adminService.deleteUser(user.id, userId);
       showToast('Usuário excluído permanentemente', 'success');
+      setSelectedUser(null);
       loadData();
     } catch (error) {
       showToast('Erro ao excluir usuário', 'error');
@@ -187,6 +279,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
     }
   };
 
+  // Filtragem avançada incluindo Pendente e Novos Cadastros
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.email.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           (u.full_name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
@@ -195,6 +288,17 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
     if (filter === 'active') return u.status === 'active';
     if (filter === 'blocked') return u.status === 'blocked';
     if (filter === 'pro') return u.subscriptionStatus === 'active';
+    
+    if (filter === 'pending_payment') {
+      return u.subscriptionStatus === 'expired' || u.status === 'delinquent';
+    }
+
+    if (filter === 'new_users') {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      return new Date(u.created_at) >= sevenDaysAgo;
+    }
+
     return true;
   });
 
@@ -337,7 +441,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">R$</span>
                         <input 
                           type="number" 
-                          className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                          className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-950 dark:text-white font-bold"
                           value={marketingCosts}
                           onChange={e => setMarketingCosts(Number(e.target.value))}
                         />
@@ -365,7 +469,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                         <input 
                           type="number" 
                           max="100"
-                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs text-center text-slate-950 dark:text-white font-bold"
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs text-center text-slate-955 dark:text-white font-bold"
                           value={feeOperationalPct}
                           onChange={e => setFeeOperationalPct(Number(e.target.value))}
                         />
@@ -375,7 +479,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                         <input 
                           type="number" 
                           max="100"
-                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs text-center text-slate-950 dark:text-white font-bold"
+                          className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs text-center text-slate-955 dark:text-white font-bold"
                           value={feeProfitPct}
                           onChange={e => setFeeProfitPct(Number(e.target.value))}
                         />
@@ -423,25 +527,37 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0">
                   <button 
                     onClick={() => setFilter('all')}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'all' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-700'}`}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter === 'all' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-700'}`}
                   >
                     Todos
                   </button>
                   <button 
-                    onClick={() => setFilter('active')}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'active' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-700'}`}
+                    onClick={() => setFilter('new_users')}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter === 'new_users' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-700'}`}
                   >
-                    Ativos
+                    Novos Cadastros
+                  </button>
+                  <button 
+                    onClick={() => setFilter('pending_payment')}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter === 'pending_payment' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-700'}`}
+                  >
+                    Pagamento Pendente
+                  </button>
+                  <button 
+                    onClick={() => setFilter('active')}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter === 'active' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-white/5 text-slate-500 hover:text-slate-700'}`}
+                  >
+                    Acesso Ativo
                   </button>
                   <button 
                     onClick={() => setFilter('blocked')}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'blocked' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-white/5 text-slate-500'}`}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter === 'blocked' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-white/5 text-slate-500'}`}
                   >
                     Bloqueados
                   </button>
                   <button 
                     onClick={() => setFilter('pro')}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pro' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-white/5 text-slate-500'}`}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${filter === 'pro' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'bg-slate-100 dark:bg-white/5 text-slate-500'}`}
                   >
                     Assinantes
                   </button>
@@ -454,121 +570,127 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                     <tr className="bg-slate-50/50 dark:bg-white/5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                       <th className="px-6 py-4">Usuário</th>
                       <th className="px-6 py-4">Status Plano</th>
-                      <th className="px-6 py-4">Status Acesso</th>
+                      <th className="px-6 py-4">Tags Acompanhamento</th>
                       <th className="px-6 py-4">Criado em</th>
                       <th className="px-6 py-4 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                    {filteredUsers.length > 0 ? filteredUsers.map(u => (
-                      <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-white/10 transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-600/10 text-indigo-600 rounded-full flex items-center justify-center font-black text-sm capitalize">
-                              {u.full_name?.charAt(0) || u.email.charAt(0)}
+                    {filteredUsers.length > 0 ? filteredUsers.map(u => {
+                      // Determinar tags de acompanhamento em tempo real
+                      const sevenDaysAgo = new Date();
+                      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                      const isNew = new Date(u.created_at) >= sevenDaysAgo;
+                      const isPending = u.subscriptionStatus === 'expired' || u.status === 'delinquent';
+                      
+                      return (
+                        <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-white/10 transition-colors group">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-indigo-600/10 text-indigo-600 rounded-full flex items-center justify-center font-black text-sm capitalize">
+                                {u.full_name?.charAt(0) || u.email.charAt(0)}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-900 dark:text-white leading-none mb-1">
+                                  {u.full_name || 'Usuário Sem Nome'}
+                                  {u.role === 'admin' && <span className="ml-2 text-[8px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-md">ADMIN</span>}
+                                </span>
+                                <span className="text-[10px] text-slate-500">{u.email}</span>
+                              </div>
                             </div>
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-slate-900 dark:text-white leading-none mb-1">
-                                {u.full_name || 'Usuário Sem Nome'}
-                                {u.role === 'admin' && <span className="ml-2 text-[8px] bg-indigo-600 text-white px-1.5 py-0.5 rounded-md">ADMIN</span>}
-                              </span>
-                              <span className="text-[10px] text-slate-500">{u.email}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <div className={`w-1.5 h-1.5 rounded-full ${
+                                  u.subscriptionStatus === 'active' ? 'bg-emerald-500' : 
+                                  u.subscriptionStatus === 'trial' ? 'bg-indigo-500' : 'bg-slate-300'
+                                }`} />
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${
+                                  u.subscriptionStatus === 'active' ? 'text-emerald-600' : 
+                                  u.subscriptionStatus === 'trial' ? 'text-indigo-600' : 'text-slate-500'
+                                }`}>
+                                  {u.subscriptionStatus === 'active' ? 'Assinante' : u.subscriptionStatus === 'trial' ? 'Trial 7 Dias' : 'Gratuito'}
+                                </span>
+                              </div>
+                              {u.subscriptionStatus === 'trial' && u.trialEndsAt && (
+                                <span className="text-[9px] text-slate-400 font-bold">Expira: {new Date(u.trialEndsAt).toLocaleDateString()}</span>
+                              )}
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1.5">
-                              <div className={`w-1.5 h-1.5 rounded-full ${
-                                u.subscriptionStatus === 'active' ? 'bg-emerald-500' : 
-                                u.subscriptionStatus === 'trial' ? 'bg-indigo-500' : 'bg-slate-300'
-                              }`} />
-                              <span className={`text-[10px] font-black uppercase tracking-widest ${
-                                u.subscriptionStatus === 'active' ? 'text-emerald-600' : 
-                                u.subscriptionStatus === 'trial' ? 'text-indigo-600' : 'text-slate-500'
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex flex-wrap gap-1.5">
+                              {/* Tag Acesso Status */}
+                              <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                                u.status === 'active' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' : 'bg-rose-50 dark:bg-rose-500/10 text-rose-600'
                               }`}>
-                                {u.subscriptionStatus === 'active' ? 'Assinante' : u.subscriptionStatus === 'trial' ? 'Trial 7 Dias' : 'Gratuito'}
+                                {u.status === 'active' ? 'Ativo' : 'Bloqueado'}
                               </span>
+                              
+                              {/* Tag Novo Cadastro */}
+                              {isNew && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-blue-50 dark:bg-blue-500/10 text-blue-600">
+                                  Novo
+                                </span>
+                              )}
+
+                              {/* Tag Pagamento Pendente */}
+                              {isPending && (
+                                <span className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest bg-amber-50 dark:bg-amber-500/10 text-amber-600">
+                                  Pendente
+                                </span>
+                              )}
                             </div>
-                            {u.subscriptionStatus === 'trial' && u.trialEndsAt && (
-                              <span className="text-[9px] text-slate-400 font-bold">Expira: {new Date(u.trialEndsAt).toLocaleDateString()}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${
-                            u.status === 'active' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' : 'bg-rose-50 dark:bg-rose-500/10 text-rose-600'
-                          }`}>
-                            {u.status === 'active' ? 'Ativo' : 'Bloqueado'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-[10px] text-slate-500 font-bold whitespace-nowrap">
-                          {new Date(u.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {actionLoading === u.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                            ) : (
-                              <>
-                                {onSimulateUser && u.id !== user.id && (
+                          </td>
+                          <td className="px-6 py-4 text-[10px] text-slate-500 font-bold whitespace-nowrap">
+                            {new Date(u.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {actionLoading === u.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                              ) : (
+                                <>
                                   <button 
-                                    onClick={() => onSimulateUser(u.id)}
-                                    title="Logar como usuário (Shadowing)"
+                                    onClick={() => handleOpenUserModal(u)}
+                                    title="Controle total do usuário"
                                     className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-white/5 rounded-lg transition-all"
                                   >
-                                    <Eye className="w-4 h-4" />
+                                    <Settings2 className="w-4 h-4" />
                                   </button>
-                                )}
 
-                                <button 
-                                  onClick={() => handleToggleBlock(u.id, u.status)}
-                                  title={u.status === 'blocked' ? 'Desbloquear' : 'Bloquear'}
-                                  className={`p-2 rounded-lg transition-all ${u.status === 'blocked' ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10'}`}
-                                >
-                                  {u.status === 'blocked' ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
-                                </button>
-                                
-                                <button 
-                                  onClick={() => handleResetTrial(u.id)}
-                                  title="Resetar Trial (7 dias)"
-                                  className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all"
-                                >
-                                  <RefreshCw className="w-4 h-4" />
-                                </button>
+                                  {onSimulateUser && u.id !== user.id && (
+                                    <button 
+                                      onClick={() => onSimulateUser(u.id)}
+                                      title="Logar como usuário (Shadowing)"
+                                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-white/5 rounded-lg transition-all"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </button>
+                                  )}
 
-                                <div className="relative group/menu">
-                                  <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-white/5 rounded-lg transition-all">
-                                    <MoreVertical className="w-4 h-4" />
+                                  <button 
+                                    onClick={() => handleToggleBlock(u.id, u.status)}
+                                    title={u.status === 'blocked' ? 'Desbloquear' : 'Bloquear'}
+                                    className={`p-2 rounded-lg transition-all ${u.status === 'blocked' ? 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-500/10' : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10'}`}
+                                  >
+                                    {u.status === 'blocked' ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
                                   </button>
-                                  <div className="absolute right-0 bottom-full mb-2 hidden group-hover/menu:block w-48 bg-white dark:bg-[#0a0c14] border border-slate-200 dark:border-white/5 rounded-2xl shadow-xl z-50 p-2 overflow-hidden animate-in fade-in slide-in-from-bottom-2">
-                                     <p className="px-3 py-2 text-[8px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-white/5 mb-1">Upgrade Plano</p>
-                                     {plans.map(plan => (
-                                       <button 
-                                         key={plan.id}
-                                         onClick={() => handleUpgradeUser(u.id, plan.id)}
-                                         className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-white/5 rounded-xl transition-all flex items-center justify-between"
-                                       >
-                                          <span>{plan.name}</span>
-                                          <Crown className="w-3 h-3 text-amber-500" />
-                                       </button>
-                                     ))}
-                                     <div className="border-t border-slate-100 dark:border-white/5 my-1" />
-                                     <button 
-                                       onClick={() => handleDeleteUser(u.id)}
-                                       className="w-full text-left px-3 py-2 text-[10px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-all flex items-center justify-between"
-                                     >
-                                        <span>Excluir Usuário</span>
-                                        <Trash2 className="w-3 h-3" />
-                                     </button>
-                                  </div>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )) : (
+                                  
+                                  <button 
+                                    onClick={() => handleResetTrial(u.id)}
+                                    title="Conceder Trial (+7 dias)"
+                                    className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all"
+                                  >
+                                    <RefreshCw className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }) : (
                       <tr>
                         <td colSpan={5} className="px-6 py-20 text-center">
                           <div className="flex flex-col items-center gap-4">
@@ -595,7 +717,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                   <Globe className="w-4 h-4 text-indigo-500" /> Log de Webhooks Recentes (Gateway)
                 </h3>
                 <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                  {webhooks.map(wh => (
+                  {webhooks.length > 0 ? webhooks.map(wh => (
                     <div key={wh.id} className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl flex justify-between items-start text-xs border border-slate-100 dark:border-white/5">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -609,7 +731,9 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                         {wh.status === 'processed' ? 'Aprovado' : 'Recusado'}
                       </span>
                     </div>
-                  ))}
+                  )) : (
+                    <p className="text-xs text-slate-400 text-center py-8">Nenhum webhook recebido ainda.</p>
+                  )}
                 </div>
               </div>
 
@@ -619,7 +743,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                   <Clock className="w-4 h-4 text-indigo-500" /> Recuperação de Dunning (Inadimplência)
                 </h3>
                 <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                  {dunning.map(d => (
+                  {dunning.length > 0 ? dunning.map(d => (
                     <div key={d.id} className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl flex justify-between items-start text-xs border border-slate-100 dark:border-white/5">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -633,7 +757,9 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                         {d.status === 'recovered' ? 'Recuperado' : 'Falhou'}
                       </span>
                     </div>
-                  ))}
+                  )) : (
+                    <p className="text-xs text-slate-400 text-center py-8">Nenhuma tentativa de dunning registrada.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -671,7 +797,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                     <HelpCircle className="w-4 h-4 text-indigo-500" /> Tickets de Suporte Ativos
                   </h3>
                   <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
-                    {tickets.map(ticket => (
+                    {tickets.length > 0 ? tickets.map(ticket => (
                       <div key={ticket.id} className={`p-4 bg-slate-50 dark:bg-white/5 rounded-2xl border ${ticket.status === 'resolved' ? 'border-emerald-500/20' : 'border-slate-100 dark:border-white/5'} space-y-2`}>
                         <div className="flex justify-between items-start">
                           <div>
@@ -702,7 +828,9 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                           )}
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <p className="text-xs text-slate-400 text-center py-8">Nenhum chamado de suporte aberto.</p>
+                    )}
                   </div>
                 </div>
 
@@ -712,7 +840,7 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                     <ShieldAlert className="w-4 h-4 text-indigo-500" /> Log de Auditoria do Admin (Audit Trails)
                   </h3>
                   <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                    {auditLogs.map(log => (
+                    {auditLogs.length > 0 ? auditLogs.map(log => (
                       <div key={log.id} className="p-3 bg-slate-50 dark:bg-white/5 rounded-xl text-xs space-y-1 border border-slate-100 dark:border-white/5">
                         <div className="flex justify-between font-bold">
                           <span className="text-slate-700 dark:text-slate-300 uppercase text-[10px] tracking-wider">{log.action.replace('_', ' ')}</span>
@@ -721,7 +849,9 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                         <p className="text-[10px] text-slate-500">Admin ID: {log.user_id}</p>
                         {log.details && <p className="text-[10px] text-slate-400 font-bold italic">{log.details.note || JSON.stringify(log.details)}</p>}
                       </div>
-                    ))}
+                    )) : (
+                      <p className="text-xs text-slate-400 text-center py-8">Nenhum log de auditoria registrado.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -730,22 +860,219 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
         </>
       )}
 
-      {/* Security Advisory footer */}
-      <div className="bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 p-6 rounded-3xl flex items-start gap-4">
-         <div className="p-3 bg-amber-200/50 dark:bg-amber-500/20 rounded-2xl flex-shrink-0">
-            <ShieldAlert className="w-6 h-6 text-amber-600" />
-         </div>
-         <div className="flex-1">
-            <h4 className="text-sm font-black text-amber-900 dark:text-amber-500 uppercase tracking-widest mb-1 font-sans">Área Restrita (Segurança Crítica)</h4>
-            <p className="text-xs text-amber-700 dark:text-amber-500/70 font-bold leading-relaxed">
-              Você está acessando o núcleo administrativo. Alterações aqui impactam diretamente o faturamento e o acesso dos usuários. 
-              As exclusões são irreversíveis e logs de auditoria estão sendo registrados.
-            </p>
-         </div>
-         <div className="hidden lg:block px-4 py-2 bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl">
-           Admin: {user.email}
-         </div>
-      </div>
+      {/* MODAL DE CONTROLE DE USUÁRIO (VISÃO 360º) */}
+      {selectedUser && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0a0c14] border border-slate-200 dark:border-white/5 rounded-[2.5rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col animate-in scale-in duration-200">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-white/5 flex justify-between items-center bg-slate-50 dark:bg-slate-950/20">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 rounded-2xl">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-tight">Controle 360º do Cliente</h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Ações cadastrais, senha e telemetria na nuvem</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedUser(null)}
+                className="p-2 hover:bg-slate-200 dark:hover:bg-white/5 rounded-xl transition-all"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-8 flex-1">
+              {/* Telemetria de Uso (Dados Reais do Supabase) */}
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5" /> Consumo de Recursos Real no Banco (Telemetria)
+                </h4>
+                {loadingUsage ? (
+                  <div className="py-4 flex items-center gap-2 text-xs font-bold text-slate-500">
+                    <Loader2 className="w-4 h-4 animate-spin text-indigo-600" /> Carregando estatísticas no Supabase...
+                  </div>
+                ) : userUsage ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-100 dark:border-white/5 text-center">
+                      <p className="text-[16px] font-black text-slate-900 dark:text-white">{userUsage.transactions}</p>
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Lançamentos</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-100 dark:border-white/5 text-center">
+                      <p className="text-[16px] font-black text-slate-900 dark:text-white">{userUsage.accounts}</p>
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Potes/Contas</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-100 dark:border-white/5 text-center">
+                      <p className="text-[16px] font-black text-slate-900 dark:text-white">{userUsage.goals}</p>
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Metas</p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-100 dark:border-white/5 text-center">
+                      <p className="text-[16px] font-black text-slate-900 dark:text-white">{userUsage.debts}</p>
+                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Compromissos</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">Erro ao carregar telemetria.</p>
+                )}
+              </div>
+
+              {/* Form de Edição */}
+              <form onSubmit={handleSaveUserDetail} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Nome Completo */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                      <User className="w-3 h-3 text-indigo-500" /> Nome Completo
+                    </label>
+                    <input 
+                      type="text" 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={editFullName}
+                      onChange={e => setEditFullName(e.target.value)}
+                    />
+                  </div>
+
+                  {/* E-mail (editável) */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                      <Mail className="w-3 h-3 text-indigo-500" /> Endereço de E-mail
+                    </label>
+                    <input 
+                      type="email" 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={editEmail}
+                      onChange={e => setEditEmail(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Telefone */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-indigo-500" /> Telefone
+                    </label>
+                    <input 
+                      type="text" 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={editPhone}
+                      onChange={e => setEditPhone(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Seleção do Plano */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                      <Crown className="w-3 h-3 text-indigo-500" /> Plano SaaS
+                    </label>
+                    <select 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={editPlanId}
+                      onChange={e => setEditPlanId(e.target.value)}
+                    >
+                      <option value="">Gratuito (Nenhum)</option>
+                      {plans.map(p => (
+                        <option key={p.id} value={p.id}>{p.name} - R$ {p.price.toFixed(2)}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Nível de Acesso (Role) */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-indigo-500" /> Privilégio
+                    </label>
+                    <select 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={editRole}
+                      onChange={e => setEditRole(e.target.value as 'user' | 'admin')}
+                    >
+                      <option value="user">Membro (Usuário)</option>
+                      <option value="admin">Administrador (Admin)</option>
+                    </select>
+                  </div>
+
+                  {/* Status do Acesso */}
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                      <Ban className="w-3 h-3 text-indigo-500" /> Status da Conta
+                    </label>
+                    <select 
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-955 dark:text-white font-bold"
+                      value={editStatus}
+                      onChange={e => setEditStatus(e.target.value as UserStatus)}
+                    >
+                      <option value="active">Ativo (Acesso Liberado)</option>
+                      <option value="blocked">Bloqueado (Acesso Suspenso)</option>
+                      <option value="delinquent">Inadimplente (Fatura Pendente)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Ações Avançadas de Senha e Benefícios */}
+                <div className="bg-slate-50 dark:bg-slate-950/40 p-5 rounded-3xl border border-slate-100 dark:border-white/5 space-y-4">
+                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <Settings2 className="w-4 h-4 text-indigo-500" /> Ações de Suporte e Benefícios
+                  </h4>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button 
+                      type="button"
+                      onClick={handleSendResetPassword}
+                      disabled={resetPasswordLoading}
+                      className="flex-1 py-3 px-4 bg-slate-200 hover:bg-slate-300 dark:bg-white/5 dark:hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 transition-all flex items-center justify-center gap-2"
+                    >
+                      {resetPasswordLoading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <KeyRound className="w-3.5 h-3.5" />
+                      )}
+                      Redefinir Senha (E-mail)
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => handleResetTrial(selectedUser.id)}
+                      className="flex-1 py-3 px-4 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Dar 7 Dias de Cortesia
+                    </button>
+                  </div>
+                </div>
+
+                {/* Botoes de Ação Modal */}
+                <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-white/5">
+                  <button 
+                    type="button"
+                    onClick={() => handleDeleteUser(selectedUser.id)}
+                    className="py-3 px-4 bg-rose-600/10 hover:bg-rose-600/20 text-rose-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Excluir Conta
+                  </button>
+
+                  <div className="flex gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => setSelectedUser(null)}
+                      className="py-3 px-5 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      type="submit"
+                      disabled={savingUser}
+                      className="py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-1.5"
+                    >
+                      {savingUser && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      Salvar Alterações
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

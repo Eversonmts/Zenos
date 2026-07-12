@@ -489,6 +489,48 @@ export const adminService = {
     await adminService.createAuditLog(performerId, 'resolve_ticket', ticketId, 'Resolvido ticket de suporte');
   },
 
+  // --- ADMIN USER DETAIL CONTROL ---
+  updateUserEmail: async (performerId: string, userId: string, newEmail: string): Promise<void> => {
+    const { error } = await supabase.from('profiles').update({ email: newEmail, updated_at: new Date().toISOString() }).eq('id', userId);
+    if (error) throw error;
+    
+    try {
+      await supabase.from('user_credentials').update({ email: newEmail }).eq('user_id', userId);
+    } catch (e) {
+      console.warn("Failed to update user_credentials email:", e);
+    }
+
+    await adminService.createAuditLog(performerId, 'update_user_email', userId, `E-mail alterado para: ${newEmail}`);
+  },
+
+  getUserUsageStats: async (userId: string): Promise<{ transactions: number, accounts: number, goals: number, debts: number }> => {
+    try {
+      const [txs, accs, gls, dbts] = await Promise.all([
+        supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('accounts').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('goals').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+        supabase.from('debts').select('id', { count: 'exact', head: true }).eq('user_id', userId)
+      ]);
+
+      return {
+        transactions: txs.count || 0,
+        accounts: accs.count || 0,
+        goals: gls.count || 0,
+        debts: dbts.count || 0
+      };
+    } catch (e) {
+      console.error("Failed to load user usage stats:", e);
+      return { transactions: 0, accounts: 0, goals: 0, debts: 0 };
+    }
+  },
+
+  sendResetPasswordEmail: async (email: string): Promise<void> => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    });
+    if (error) throw error;
+  },
+
   // --- HEALTH CHECKS ---
   getSystemHealth: async (): Promise<SystemHealthCheck[]> => {
     const start = Date.now();
