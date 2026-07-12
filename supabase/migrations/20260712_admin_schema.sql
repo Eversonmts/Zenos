@@ -99,3 +99,50 @@ CREATE TABLE IF NOT EXISTS public.system_health_checks (
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS admin_role TEXT CHECK (admin_role IN ('super_admin', 'finance_analyst', 'support')) DEFAULT NULL;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP WITH TIME ZONE;
+
+-- 11. Habilitar RLS nas novas tabelas
+ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_activity_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gateway_webhooks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.dunning_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.billing_receipts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_usage_quotas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_health_checks ENABLE ROW LEVEL SECURITY;
+
+-- 12. Políticas de RLS para Administradores no Supabase (Evitar filtro invisível do RLS)
+
+-- Politica Auxiliar/Segura para validar se o requisitante é admin baseado no auth.jwt() ou tabela profiles
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- A. Políticas para tabela PROFILES
+CREATE POLICY "Admins can select all profiles" ON public.profiles FOR SELECT TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins can update all profiles" ON public.profiles FOR UPDATE TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins can delete any profile" ON public.profiles FOR DELETE TO authenticated USING (public.is_admin());
+
+-- B. Políticas para tabela SUBSCRIPTIONS
+CREATE POLICY "Admins can select all subscriptions" ON public.subscriptions FOR SELECT TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins can manage all subscriptions" ON public.subscriptions FOR ALL TO authenticated USING (public.is_admin());
+
+-- C. Políticas para as novas tabelas Administrativas (Acesso apenas para Admins)
+CREATE POLICY "Admins only admin_settings" ON public.admin_settings FOR ALL TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins only user_activity_logs" ON public.user_activity_logs FOR ALL TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins only gateway_webhooks" ON public.gateway_webhooks FOR ALL TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins only dunning_attempts" ON public.dunning_attempts FOR ALL TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins only billing_receipts" ON public.billing_receipts FOR ALL TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins only user_usage_quotas" ON public.user_usage_quotas FOR ALL TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins only admin_logs" ON public.admin_logs FOR ALL TO authenticated USING (public.is_admin());
+CREATE POLICY "Admins only system_health_checks" ON public.system_health_checks FOR ALL TO authenticated USING (public.is_admin());
+
+-- D. Políticas para SUPPORT_TICKETS (Usuários normais gerenciam seus próprios, admins gerenciam tudo)
+CREATE POLICY "Users can manage support_tickets" ON public.support_tickets FOR ALL TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Admins can manage all support_tickets" ON public.support_tickets FOR ALL TO authenticated USING (public.is_admin());
