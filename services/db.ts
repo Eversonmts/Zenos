@@ -606,7 +606,7 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
     subscriptions: [],
     categories: [...(systemCategories || []), ...byTable.categories] as Category[],
     subcategories: byTable.subcategories as any[],
-    accounts: (byTable.accounts.length ? byTable.accounts : INITIAL_ACCOUNTS) as Account[],
+    accounts: byTable.accounts as Account[],
     transactions: byTable.transactions as Transaction[],
     transaction_allocations: allocations,
     goals: byTable.goals as Goal[],
