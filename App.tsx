@@ -1157,7 +1157,7 @@ export default function App() {
              </div>
              <div className="flex flex-col overflow-hidden">
                 <span className="text-xs font-bold text-[#212529] dark:text-white truncate">{user.full_name || 'Usuário'}</span>
-                <span className="text-[10px] text-[#4e545a] dark:text-slate-600 uppercase tracking-widest">{user.role}</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest">{user.role}</span>
              </div>
           </button>
         </div>
@@ -1168,14 +1168,14 @@ export default function App() {
              if (items.length === 0) return null;
              return (
               <div key={sectionName} className="space-y-1">
-                <h4 className="px-4 text-[8px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-[0.3em] lg:hidden xl:block">{sectionName}</h4>
+                <h4 className="px-4 text-[8px] font-black text-slate-550 dark:text-slate-400 uppercase tracking-[0.3em] lg:hidden xl:block">{sectionName}</h4>
                 <div className="space-y-1">
                   {items.map((item) => (
                     <button key={item.id} onClick={() => {
                         if ((item.id as string) === 'categories') { setView('settings'); setSettingsTab('categories'); }
                         else setView(item.id);
                         setIsSidebarOpen(false);
-                      }} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all min-h-[44px] ${view === item.id || ((item.id as string) === 'categories' && view === 'settings' && settingsTab === 'categories') ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/10' : 'text-[#4e545a] dark:text-slate-600 hover:text-[#212529] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'}`}>
+                      }} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all min-h-[44px] ${view === item.id || ((item.id as string) === 'categories' && view === 'settings' && settingsTab === 'categories') ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/10' : 'text-slate-500 dark:text-slate-400 hover:text-[#212529] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'}`}>
                       <item.icon className={`w-5 h-5 flex-shrink-0 ${view === item.id ? 'text-white' : ''}`} />
                       <span className="font-bold text-sm lg:hidden xl:block flex items-center gap-1.5">
                         {item.label}

@@ -112,18 +112,18 @@ export default function BottomNav({ currentView, onNavigate, onQuickAction, onTo
         <div className="flex items-center justify-between max-w-md mx-auto relative h-16">
           <button
             onClick={() => onNavigate('dashboard')}
-            className={`flex flex-col items-center gap-1 flex-1 transition-colors ${currentView === 'dashboard' ? 'text-[#6B21A8]' : 'text-slate-400'}`}
+            className={`flex flex-col items-center gap-1 flex-1 transition-colors ${currentView === 'dashboard' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
           >
             <Home className="w-6 h-6" />
-            <span className="text-[10px] font-bold">Principal</span>
+            <span className="text-[10px] font-black uppercase tracking-wider">Principal</span>
           </button>
 
           <button
             onClick={() => onNavigate('transactions')}
-            className={`flex flex-col items-center gap-1 flex-1 transition-colors ${currentView === 'transactions' ? 'text-[#6B21A8]' : 'text-slate-400'}`}
+            className={`flex flex-col items-center gap-1 flex-1 transition-colors ${currentView === 'transactions' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
           >
             <List className="w-6 h-6" />
-            <span className="text-[10px] font-bold">Transações</span>
+            <span className="text-[10px] font-black uppercase tracking-wider">Transações</span>
           </button>
 
           {/* Central FAB Placeholder */}
@@ -131,15 +131,15 @@ export default function BottomNav({ currentView, onNavigate, onQuickAction, onTo
 
           <button
             onClick={() => onNavigate('goals')}
-            className={`flex flex-col items-center gap-1 flex-1 transition-colors ${currentView === 'goals' ? 'text-[#6B21A8]' : 'text-slate-400'}`}
+            className={`flex flex-col items-center gap-1 flex-1 transition-colors ${currentView === 'goals' ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
           >
             <Target className="w-6 h-6" />
-            <span className="text-[10px] font-bold">Metas</span>
+            <span className="text-[10px] font-black uppercase tracking-wider">Metas</span>
           </button>
 
           <button
             onClick={onToggleSidebar}
-            className={`relative flex flex-col items-center gap-1 flex-1 transition-colors text-slate-400`}
+            className={`relative flex flex-col items-center gap-1 flex-1 transition-colors text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white`}
           >
             <div className="relative">
               <MoreHorizontal className="w-6 h-6" />
@@ -147,7 +147,7 @@ export default function BottomNav({ currentView, onNavigate, onQuickAction, onTo
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 border border-white dark:border-[#0a0c14] rounded-full animate-pulse" />
               )}
             </div>
-            <span className="text-[10px] font-bold">Mais</span>
+            <span className="text-[10px] font-black uppercase tracking-wider">Mais</span>
           </button>
 
           {/* Actual Central FAB */}

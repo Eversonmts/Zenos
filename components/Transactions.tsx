@@ -336,12 +336,12 @@ export default function Transactions({
                   <div className="flex items-center gap-2">
                     <p className="font-bold text-[#212529] dark:text-slate-200 text-xs truncate">{t.description}</p>
                     {t.payment_method && (
-                      <div className="text-slate-400 dark:text-slate-600">
+                      <div className="text-slate-500 dark:text-slate-400">
                         {getPaymentIcon(t.payment_method)}
                       </div>
                     )}
                   </div>
-                  <p className="text-[8px] text-[#4e545a] dark:text-slate-700 font-black uppercase tracking-widest">
+                  <p className="text-[8px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest">
                     {categories.find(c => c.id === t.category_id)?.name || 'Sem Categoria'}
                     {t.subcategory_id && ` • ${subcategories.find(s => s.id === t.subcategory_id)?.name}`}
                     {` • ${formatDisplayDate(t.date_at)}`}
@@ -362,7 +362,7 @@ export default function Transactions({
                 {t.type === 'income' ? 'RECEITA' : (accounts.find(p => p.id === t.account_id)?.name || 'OUTRO')}
               </span>
               <div className="flex gap-1.5">
-                <button onClick={() => handleOpenEdit(t)} className="p-2 text-[#5c636a] dark:text-slate-600 bg-slate-100 dark:bg-slate-900/50 rounded-lg hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"><Edit2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => handleOpenEdit(t)} className="p-2 text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900/50 rounded-lg hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"><Edit2 className="w-3.5 h-3.5" /></button>
                 <button onClick={() => onDelete(t.id)} className="p-2 text-rose-500/50 bg-rose-500/5 rounded-lg hover:text-rose-600 dark:hover:text-rose-400 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>
@@ -371,10 +371,10 @@ export default function Transactions({
         {filteredTransactions.length === 0 && (
           <div className="col-span-full flex flex-col items-center justify-center py-16 px-4 bg-slate-50 dark:bg-slate-900/20 border border-dashed border-slate-200 dark:border-white/10 rounded-3xl animate-in fade-in zoom-in-95">
             <div className="p-4 bg-white dark:bg-white/5 rounded-full mb-4 shadow-sm">
-               <SearchX className="w-8 h-8 text-slate-500 dark:text-slate-700" />
+               <SearchX className="w-8 h-8 text-slate-500 dark:text-slate-400" />
             </div>
             <p className="text-sm font-bold text-slate-700 dark:text-slate-500">Nenhuma transação encontrada</p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-700 uppercase font-black tracking-widest mt-1 text-center">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-black tracking-widest mt-1 text-center">
                Para o filtro selecionado
             </p>
           </div>
@@ -403,24 +403,24 @@ export default function Transactions({
             <form onSubmit={handleSubmit}>
               <div className="space-y-4 max-h-[60vh] overflow-y-auto px-1 pr-2 custom-scrollbar">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[#4e545a] dark:text-slate-600 uppercase ml-1">Descrição</label>
+                  <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Descrição</label>
                   <input required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none focus:ring-1 focus:ring-indigo-600 text-sm" value={currentTx.description} onChange={e => setCurrentTx({...currentTx, description: e.target.value})} placeholder="Ex: Salário, Aluguel..." />
                 </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[#4e545a] dark:text-slate-600 uppercase ml-1">Valor R$</label>
+                  <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Valor R$</label>
                   <input type="number" step="0.01" inputMode="decimal" required className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none text-sm" value={currentTx.amount || ''} onChange={e => setCurrentTx({...currentTx, amount: parseFloat(e.target.value)})} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[#4e545a] dark:text-slate-600 uppercase ml-1">Data</label>
+                  <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Data</label>
                   <input type="date" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none text-sm" value={currentTx.date_at} onChange={e => setCurrentTx({...currentTx, date_at: e.target.value})} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[#4e545a] dark:text-slate-600 uppercase ml-1">Categoria</label>
+                  <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Categoria</label>
                   {!isAddingNewCategory ? (
                     <select 
                       required 
@@ -438,13 +438,13 @@ export default function Transactions({
                   ) : (
                     <div className="relative">
                       <input autoFocus placeholder="Nova categoria..." className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-indigo-500/50 rounded-xl text-[#212529] dark:text-white outline-none text-sm" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} />
-                      <button type="button" onClick={() => setIsAddingNewCategory(false)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-500"><X className="w-3 h-3" /></button>
+                      <button type="button" onClick={() => setIsAddingNewCategory(false)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 dark:text-slate-400 hover:text-rose-500"><X className="w-3 h-3" /></button>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[#4e545a] dark:text-slate-600 uppercase ml-1">Subcategoria</label>
+                  <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Subcategoria</label>
                   {!isAddingNewSubcategory ? (
                     <select 
                       className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none text-sm disabled:opacity-50"
@@ -462,14 +462,14 @@ export default function Transactions({
                   ) : (
                     <div className="relative">
                       <input autoFocus placeholder="Nova sub..." className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-indigo-500/50 rounded-xl text-[#212529] dark:text-white outline-none text-sm" value={newSubcategoryName} onChange={e => setNewSubcategoryName(e.target.value)} />
-                      <button type="button" onClick={() => setIsAddingNewSubcategory(false)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-rose-500"><X className="w-3 h-3" /></button>
+                      <button type="button" onClick={() => setIsAddingNewSubcategory(false)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 dark:text-slate-400 hover:text-rose-500"><X className="w-3 h-3" /></button>
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-[#4e545a] dark:text-slate-600 uppercase ml-1">Forma de Pagamento</label>
+                <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Forma de Pagamento</label>
                 <select 
                   className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none text-sm"
                   value={currentTx.payment_method || ''}
@@ -482,7 +482,7 @@ export default function Transactions({
 
               {currentTx.type === 'expense' && (
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-[#4e545a] dark:text-slate-600 uppercase ml-1">Pote de Origem</label>
+                  <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Pote de Origem</label>
                   <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none text-sm" value={currentTx.account_id} onChange={e => setCurrentTx({...currentTx, account_id: e.target.value})}>
                     <option value="">Selecione um Pote...</option>
                     {accounts.map(p => <option key={p.id} value={p.id}>{p.name} (R$ {p.current_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>)}

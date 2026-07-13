@@ -217,7 +217,7 @@ export default function Dashboard({
     switch (id) {
       case 'summary_widgets':
         return (
-            <div key="summary_widgets" className="bg-white dark:bg-[#0a0c14] p-5 rounded-b-[2.5rem] border-b border-slate-200 dark:border-white/5 space-y-6 animate-in fade-in slide-in-from-top-4 duration-500 -mx-4 md:-mx-6 -mt-4 md:-mt-6">
+            <div key="summary_widgets" className="bg-white dark:bg-[#0a0c14] p-5 rounded-b-3xl border-b border-slate-200 dark:border-white/5 space-y-6 animate-in fade-in slide-in-from-top-4 duration-500 -mx-4 md:-mx-6 -mt-4 md:-mt-6">
             {/* Top Row: Profile, Month, Gift */}
             <div className="flex justify-between items-center">
               <button 
@@ -228,7 +228,7 @@ export default function Dashboard({
                   {user?.avatar_url ? (
                     <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
-                    <div className="text-slate-400">
+                    <div className="text-slate-500 dark:text-slate-400">
                       <Wallet className="w-6 h-6" />
                     </div>
                   )}
@@ -243,7 +243,7 @@ export default function Dashboard({
                 <button 
                   type="button"
                   onClick={handlePrevMonth}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-all text-slate-400 hover:text-indigo-500 active:scale-90"
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:scale-90"
                   title="Mês Anterior"
                 >
                   <ChevronLeft className="w-5 h-5" />
@@ -258,7 +258,7 @@ export default function Dashboard({
                     <span className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
                       {months[selectedMonth]}
                     </span>
-                    <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-all group-hover:translate-y-0.5" />
+                    <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 group-hover:text-indigo-500 transition-all group-hover:translate-y-0.5" />
                   </button>
 
                   {showDatePicker && (
@@ -277,7 +277,7 @@ export default function Dashboard({
                             onClick={() => setSelectedYear(prev => prev - 1)} 
                             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                           >
-                            <ChevronLeft className="w-4 h-4 text-slate-650 dark:text-slate-400" />
+                            <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-400" />
                           </button>
                           <span className="font-black text-sm tracking-tight">{selectedYear}</span>
                           <button 
@@ -285,7 +285,7 @@ export default function Dashboard({
                             onClick={() => setSelectedYear(prev => prev + 1)} 
                             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
                           >
-                            <ChevronRight className="w-4 h-4 text-slate-650 dark:text-slate-400" />
+                            <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-400" />
                           </button>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
@@ -297,7 +297,7 @@ export default function Dashboard({
                                 setSelectedMonth(idx);
                                 setShowDatePicker(false);
                               }}
-                              className={`text-[9px] font-black uppercase py-2.5 rounded-xl transition-all ${selectedMonth === idx ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10' : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-600'}`}
+                              className={`text-[9px] font-black uppercase py-2.5 rounded-xl transition-all ${selectedMonth === idx ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10' : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-600 dark:text-slate-400'}`}
                             >
                               {m.substring(0, 3)}
                             </button>
@@ -311,7 +311,7 @@ export default function Dashboard({
                 <button 
                   type="button"
                   onClick={handleNextMonth}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-all text-slate-400 hover:text-indigo-500 active:scale-90"
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-all text-slate-500 dark:text-slate-400 hover:text-indigo-500 active:scale-90"
                   title="Próximo Mês"
                 >
                   <ChevronRight className="w-5 h-5" />
@@ -323,21 +323,24 @@ export default function Dashboard({
                 className="relative w-12 h-12 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 hover:scale-105 active:scale-95 transition-all group"
                 title="Zenos IA Scanner"
               >
+                <div className="absolute top-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-[#0a0c14] z-[1]" />
                 <Sparkles className="w-5 h-5 text-white animate-pulse" />
-                <div className="absolute top-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-[#0a0c14]"></div>
               </button>
             </div>
 
-            {/* Middle Section: Balance */}
-            <div className="text-center space-y-0">
-              <p className="text-[10px] font-black text-slate-600 dark:text-slate-700 uppercase tracking-widest">SALDO</p>
-              <div className="flex items-center justify-center gap-3">
-                <h2 className="text-3xl font-black tracking-tighter text-[#212529] dark:text-white">
-                  R$ {showBalance ? formatCurrency(currentTotalBalance) : '••••••'}
-                </h2>
+            {/* Middle Row: Saldo Total */}
+            <div className="flex justify-between items-end">
+              <div>
+                <p className="text-[10px] font-black text-slate-550 dark:text-slate-400 uppercase tracking-widest mb-1.5">Saldo Disponível</p>
+                <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white transition-all select-none">
+                  {showBalance ? `R$ ${formatCurrency(dashboardTotalBalance)}` : '••••••'}
+                </h1>
+              </div>
+              <div>
                 <button 
+                  type="button"
                   onClick={() => setShowBalance(!showBalance)}
-                  className="p-2 text-slate-400 hover:text-indigo-500 transition-colors"
+                  className="p-2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors"
                 >
                   {showBalance ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                 </button>
@@ -354,7 +357,7 @@ export default function Dashboard({
                   <ArrowUpCircle className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[9px] font-black text-slate-600 dark:text-slate-700 uppercase tracking-widest">Receitas</p>
+                  <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Receitas</p>
                   <p className="text-base font-black text-[#10b981]">R$ {formatCurrency(currentMonthlyIncome)}</p>
                 </div>
               </button>
@@ -366,7 +369,7 @@ export default function Dashboard({
                   <ArrowDownCircle className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-[9px] font-black text-slate-600 dark:text-slate-700 uppercase tracking-widest">Gastos</p>
+                  <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Gastos</p>
                   <p className="text-base font-black text-[#f43f5e]">R$ {formatCurrency(currentMonthlyExpenses)}</p>
                 </div>
               </button>
@@ -378,9 +381,9 @@ export default function Dashboard({
           <button 
             key="expenses_by_category"
             onClick={() => onNavigate?.('transactions', 'expense')}
-            className="w-full text-left bg-white dark:bg-[#0a0c14] p-6 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-sm hover:border-indigo-500/30 transition-all group block"
+            className="w-full text-left bg-white dark:bg-[#0a0c14] p-6 rounded-3xl border border-slate-200 dark:border-white/5 shadow-sm hover:border-indigo-500/30 transition-all group block"
           >
-            <h3 className="text-[10px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-widest mb-6 flex items-center gap-2 group-hover:text-indigo-500 transition-colors">
+            <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2 group-hover:text-indigo-500 transition-colors">
               <PieChartIcon className="w-4 h-4 text-indigo-500" /> Gastos por Categoria
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
@@ -413,7 +416,7 @@ export default function Dashboard({
                     </div>
                     <div className="text-right">
                       <p className="text-xs font-black text-[#212529] dark:text-white">R$ {formatCurrency(item.value)}</p>
-                      <p className="text-[9px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-widest">
+                      <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                         {((item.value / (monthExpenses || 1)) * 100).toFixed(1)}%
                       </p>
                     </div>
@@ -421,7 +424,7 @@ export default function Dashboard({
                 ))}
                 {categoryData.length === 0 && (
                   <div className="py-8 text-center">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sem despesas registradas</p>
+                    <p className="text-[10px] font-black text-slate-550 dark:text-slate-400 uppercase tracking-widest">Sem despesas registradas</p>
                   </div>
                 )}
               </div>
@@ -435,7 +438,7 @@ export default function Dashboard({
               onClick={() => onNavigate?.('accounts' as any)}
               className="w-full text-left focus:outline-none group/title"
             >
-              <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest px-1 flex items-center gap-3 group-hover/title:text-indigo-500 transition-colors">
+              <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest px-1 flex items-center gap-3 group-hover/title:text-indigo-500 transition-colors">
                 POTES <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800/50 group-hover/title:bg-indigo-500/30"></div>
               </h3>
             </button>
@@ -591,10 +594,10 @@ export default function Dashboard({
             className="w-full text-left bg-slate-50 dark:bg-slate-900/40 p-5 rounded-3xl border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-slate-900/60 transition-all group overflow-hidden"
           >
             <div className="flex justify-between items-center mb-4 min-w-0">
-              <h3 className="text-[9px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest flex items-center gap-2 truncate">
+              <h3 className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2 truncate">
                  Compromissos do Mês
               </h3>
-              <TrendingUp className="w-4 h-4 flex-shrink-0 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+              <TrendingUp className="w-4 h-4 flex-shrink-0 text-slate-550 dark:text-slate-400 group-hover:text-indigo-500 transition-colors" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 <div className="min-w-0 bg-indigo-500/10 rounded-2xl p-3 border border-indigo-500/20">
@@ -630,7 +633,7 @@ export default function Dashboard({
               onClick={() => onNavigate?.('goals')}
               className="w-full text-left focus:outline-none group/title"
             >
-              <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest px-1 flex items-center gap-3 group-hover/title:text-indigo-500 transition-colors">
+              <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest px-1 flex items-center gap-3 group-hover/title:text-indigo-500 transition-colors">
                 METAS <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800/50 group-hover/title:bg-indigo-500/30"></div>
               </h3>
             </button>
@@ -641,19 +644,19 @@ export default function Dashboard({
                   <button 
                     key={goal.id} 
                     onClick={() => onNavigate?.('goals')}
-                    className="bg-white dark:bg-[#0a0c14] p-5 rounded-[2rem] border border-slate-200 dark:border-white/5 shadow-sm text-left hover:border-indigo-500/50 transition-all active:scale-95"
+                    className="bg-white dark:bg-[#0a0c14] p-5 rounded-3xl border border-slate-200 dark:border-white/5 shadow-sm text-left hover:border-indigo-500/50 transition-all active:scale-95"
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{goal.title}</h4>
-                        <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">Prazo: {formatDisplayDate(goal.deadline)}</p>
+                        <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Prazo: {formatDisplayDate(goal.deadline)}</p>
                       </div>
                       <Trophy className="w-4 h-4 text-amber-500" />
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between text-[9px] font-black uppercase">
                         <span className="text-indigo-600 dark:text-indigo-400">R$ {formatCurrency(goal.current_amount)}</span>
-                        <span className="text-slate-400">R$ {formatCurrency(goal.target_amount)}</span>
+                        <span className="text-slate-550 dark:text-slate-400">R$ {formatCurrency(goal.target_amount)}</span>
                       </div>
                       <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                         <div className="h-full bg-indigo-600 transition-all duration-1000" style={{ width: `${Math.min(progress, 100)}%` }}></div>
@@ -664,7 +667,7 @@ export default function Dashboard({
               })}
               {(!goals || goals.length === 0) && (
                 <div className="col-span-full py-8 text-center bg-slate-50 dark:bg-slate-900/20 rounded-3xl border border-dashed border-slate-200 dark:border-white/5">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nenhuma meta ativa</p>
+                  <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Nenhuma meta ativa</p>
                 </div>
               )}
             </div>
@@ -677,7 +680,7 @@ export default function Dashboard({
               onClick={() => onNavigate?.('transactions')}
               className="w-full text-left focus:outline-none group/title"
             >
-              <h3 className="text-[9px] font-black text-[#4e545a] dark:text-slate-600 uppercase tracking-widest px-1 flex items-center gap-3 group-hover/title:text-indigo-500 transition-colors">
+              <h3 className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest px-1 flex items-center gap-3 group-hover/title:text-indigo-500 transition-colors">
                 ATIVIDADES <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800/50 group-hover/title:bg-indigo-500/30"></div>
               </h3>
             </button>
@@ -694,7 +697,7 @@ export default function Dashboard({
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-[#212529] dark:text-slate-200 truncate">{t.description}</p>
-                      <p className="text-[8px] text-[#4e545a] dark:text-slate-700 font-black uppercase tracking-widest">{data.categories.find(c => c.id === t.category_id)?.name || 'Outros'}</p>
+                      <p className="text-[8px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest">{data.categories.find(c => c.id === t.category_id)?.name || 'Outros'}</p>
                     </div>
                   </div>
                   <p className={`text-sm font-black ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-[#212529] dark:text-slate-300'}`}>
@@ -703,7 +706,7 @@ export default function Dashboard({
                 </button>
               ))}
               {filteredTransactions.length === 0 && (
-                <div className="col-span-full py-12 text-center text-[#4e545a] dark:text-slate-800 text-[10px] font-black uppercase italic tracking-widest">VAZIO</div>
+                <div className="col-span-full py-12 text-center text-slate-500 dark:text-slate-500 text-[10px] font-black uppercase italic tracking-widest">VAZIO</div>
               )}
             </div>
           </div>
@@ -715,12 +718,12 @@ export default function Dashboard({
         const topBudgets = budgets.slice(0, 3);
 
         return (
-          <div key="budgets" onClick={() => onNavigate && onNavigate('budgets' as any)} className="cursor-pointer bg-white dark:bg-[#0a0c14] p-6 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-sm hover:border-indigo-500/30 transition-all">
+          <div key="budgets" onClick={() => onNavigate && onNavigate('budgets' as any)} className="cursor-pointer bg-white dark:bg-[#0a0c14] p-6 rounded-3xl border border-slate-200 dark:border-white/5 shadow-sm hover:border-indigo-500/30 transition-all">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest flex items-center gap-2">
+              <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2">
                 <PieChartIcon className="w-4 h-4 text-indigo-500" /> Orçamentos
               </h3>
-              <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-700" />
+              <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             </div>
             <div className="space-y-4">
               {topBudgets.map(b => {
@@ -734,7 +737,7 @@ export default function Dashboard({
                   <div key={b.id}>
                     <div className="flex justify-between items-center mb-1.5">
                       <span className="text-xs font-bold text-[#212529] dark:text-white">{b.category_name}</span>
-                      <span className={`text-[10px] font-black ${isOver ? 'text-rose-500' : 'text-slate-400'}`}>{percent.toFixed(0)}%</span>
+                      <span className={`text-[10px] font-black ${isOver ? 'text-rose-500' : 'text-slate-500 dark:text-slate-400'}`}>{percent.toFixed(0)}%</span>
                     </div>
                     <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full ${isOver ? 'bg-rose-500' : percent > 80 ? 'bg-amber-500' : 'bg-indigo-500'}`} style={{ width: `${percent}%` }} />
@@ -754,9 +757,9 @@ export default function Dashboard({
           <button 
             key="cash_flow_chart"
             onClick={() => onNavigate?.('transactions')}
-            className="w-full text-left bg-white dark:bg-[#0a0c14] p-6 rounded-[2.5rem] border border-slate-200 dark:border-white/5 shadow-sm hover:border-indigo-500/30 transition-all group block"
+            className="w-full text-left bg-white dark:bg-[#0a0c14] p-6 rounded-3xl border border-slate-200 dark:border-white/5 shadow-sm hover:border-indigo-500/30 transition-all group block"
           >
-            <h3 className="text-[10px] font-black text-[#5c636a] dark:text-slate-600 uppercase tracking-widest mb-6 flex items-center gap-2 group-hover:text-indigo-500 transition-colors">
+            <h3 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2 group-hover:text-indigo-500 transition-colors">
               <TrendingUp className="w-4 h-4 text-indigo-500" /> Fluxo de Caixa Mensal
             </h3>
             <div className="h-[300px] w-full">
@@ -803,7 +806,7 @@ export default function Dashboard({
     if (active && payload && payload.length) {
       return (
         <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-white/10 p-3 rounded-2xl shadow-2xl backdrop-blur-md">
-          <p className="text-[10px] font-black text-[#4e545a] dark:text-slate-600 uppercase tracking-widest mb-2">Dia {label}</p>
+          <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2">Dia {label}</p>
           {payload.map((p: any) => (
             <div key={p.name} className="flex items-center justify-between gap-4 mb-1 last:mb-0">
               <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: p.color }}>{p.name}</span>
@@ -826,7 +829,7 @@ export default function Dashboard({
       <div className="pt-8 pb-4 flex justify-center">
         <button 
           onClick={() => setShowLayoutModal(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-2xl text-slate-600 hover:text-indigo-600 transition-all shadow-sm active:scale-95"
+          className="flex items-center gap-2 px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-2xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 transition-all shadow-sm active:scale-95"
         >
           <Settings className="w-4 h-4" />
           <span className="text-[10px] font-black uppercase tracking-widest">Ajuste de tela inicial</span>
@@ -836,13 +839,13 @@ export default function Dashboard({
       {/* Modal de Personalização de Layout */}
       {showLayoutModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 shadow-2xl animate-in zoom-in-95 duration-300">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-300">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-xl font-black tracking-tighter text-slate-900 dark:text-white uppercase">Personalizar Dashboard</h3>
-                <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Organize e habilite itens</p>
+                <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Organize e habilite itens</p>
               </div>
-              <button onClick={() => setShowLayoutModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 hover:text-slate-900 dark:hover:text-white transition-colors">
+              <button onClick={() => setShowLayoutModal(false)} className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-650 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
