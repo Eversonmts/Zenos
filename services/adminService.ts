@@ -342,9 +342,17 @@ export const adminService = {
     }
 
     // 1. Carrega dados fundamentais das tabelas reais
-    const { data: profiles } = await supabase.from('profiles').select('id, status, subscriptionStatus, created_at, updated_at');
-    const { data: subscriptions } = await supabase.from('subscriptions').select('id, status, plan_id, updated_at');
+    const { data: profiles } = await supabase.from('profiles').select('id, status, created_at, updated_at');
+    const { data: subscriptions } = await supabase.from('subscriptions').select('id, status, plan_id, updated_at, user_id');
     const { data: plans } = await supabase.from('plans').select('id, price, name');
+
+    const enrichedProfiles = profiles?.map(p => {
+      const sub = subscriptions?.find(s => s.user_id === p.id);
+      return {
+        ...p,
+        subscriptionStatus: sub ? sub.status : 'trial'
+      };
+    }) || [];
 
     const totalUsers = profiles?.length || 0;
     const activeSubscribers = subscriptions?.filter(s => s.status === 'active').length || 0;
@@ -392,8 +400,8 @@ export const adminService = {
     const mau = activeUserIdsMonth.size || 1;
 
     // Conversão Trial para Paid
-    const trials = profiles?.filter(p => p.subscriptionStatus === 'trial').length || 0;
-    const paids = profiles?.filter(p => p.subscriptionStatus === 'active').length || 0;
+    const trials = enrichedProfiles.filter(p => p.subscriptionStatus === 'trial').length || 0;
+    const paids = enrichedProfiles.filter(p => p.subscriptionStatus === 'active').length || 0;
     const totalFunnel = trials + paids;
     const trialToPaidConversion = totalFunnel > 0 ? (paids / totalFunnel) * 100 : 0;
 
@@ -548,7 +556,24 @@ export const adminService = {
     if (isTestUser(performerId)) {
       return ensureSandboxUsers();
     }
-    return await db.users.listAll();
+    try {
+      const profiles = await db.users.listAll();
+      const { data: subscriptions } = await supabase.from('subscriptions').select('*');
+      const { data: plans } = await supabase.from('plans').select('*');
+
+      return profiles.map(p => {
+        const sub = subscriptions?.find(s => s.user_id === p.id);
+        const plan = plans?.find(pl => pl.id === p.plan_id || (sub && pl.id === sub.plan_id));
+        return {
+          ...p,
+          subscriptionStatus: sub ? sub.status : 'trial',
+          plan: plan ? plan.name : 'Nenhum'
+        } as any;
+      });
+    } catch (e) {
+      console.error("Failed to enrich listUsers from Supabase:", e);
+      return await db.users.listAll();
+    }
   },
 
   toggleUserBlock: async (performerId: string, userId: string, currentStatus: UserStatus): Promise<void> => {
