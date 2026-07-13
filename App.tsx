@@ -78,44 +78,6 @@ export default function App() {
   // Estado para verificar atualização pendente do aplicativo
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
 
-  // --- PWA INSTALL BANNER STATES ---
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallBanner, setShowInstallBanner] = useState(false);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      const isClosed = sessionStorage.getItem('zenos_install_banner_closed') === 'true';
-      if (!isClosed) {
-        setShowInstallBanner(true);
-      }
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    const handleAppInstalled = () => {
-      setDeferredPrompt(null);
-      setShowInstallBanner(false);
-      showToast("ZenOS instalado com sucesso! Acesse pela sua tela inicial.", "success");
-    };
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstallApp = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      console.log('Usuário aceitou instalar o PWA');
-    }
-    setDeferredPrompt(null);
-    setShowInstallBanner(false);
-  };
 
   useEffect(() => {
     const checkAppUpdate = async () => {
@@ -174,6 +136,55 @@ export default function App() {
   const [pinBuffer, setPinBuffer] = useState('');
   const [loading, setLoading] = useState(true);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // --- PWA INSTALL BANNER STATES ---
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [showInstallModal, setShowInstallModal] = useState(false);
+
+  useEffect(() => {
+    if (user && deferredPrompt) {
+      const isAlreadyAsked = localStorage.getItem('zenos_install_prompt_asked_v1') === 'true';
+      if (!isAlreadyAsked) {
+        setShowInstallModal(true);
+      }
+    }
+  }, [user, deferredPrompt]);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      const isClosed = sessionStorage.getItem('zenos_install_banner_closed') === 'true';
+      if (!isClosed) {
+        setShowInstallBanner(true);
+      }
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setShowInstallBanner(false);
+      showToast("ZenOS instalado com sucesso! Acesse pela sua tela inicial.", "success");
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('Usuário aceitou instalar o PWA');
+    }
+    setDeferredPrompt(null);
+    setShowInstallBanner(false);
+  };
 
   useEffect(() => {
     // Timeout safety for initial load
@@ -1101,6 +1112,55 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full max-w-[100vw] flex bg-slate-50 dark:bg-[#030712] text-[#1c1f22] dark:text-slate-200 font-sans overflow-hidden overflow-x-hidden select-none transition-colors duration-300">
+      {/* Modal Central de Instalação Proeminente pós-login */}
+      <AnimatePresence>
+        {showInstallModal && (
+          <div className="fixed inset-0 z-[110] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-[#0a0c14] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-6 max-w-sm w-full text-center space-y-6 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+              
+              <div className="w-20 h-20 rounded-[2rem] overflow-hidden shadow-lg mx-auto bg-[#030712] flex items-center justify-center border border-white/5 animate-pulse">
+                <img src="/icon.jpg" alt="ZenOS Logo" className="w-16 h-16 object-contain rounded-2xl" />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-wider">Instalar ZenOS Finance</h3>
+                <p className="text-xs text-slate-500 font-bold leading-relaxed max-w-xs mx-auto">
+                  Deseja instalar o ZenOS no seu telefone para ter acesso instantâneo pela tela inicial, modo offline e melhor velocidade?
+                </p>
+              </div>
+              
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    setShowInstallModal(false);
+                    localStorage.setItem('zenos_install_prompt_asked_v1', 'true');
+                  }} 
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                >
+                  Mais Tarde
+                </button>
+                <button 
+                  onClick={() => {
+                    handleInstallApp();
+                    setShowInstallModal(false);
+                    localStorage.setItem('zenos_install_prompt_asked_v1', 'true');
+                  }} 
+                  className="flex-1 py-3 bg-gradient-to-tr from-indigo-600 to-purple-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-95 transition-all"
+                >
+                  Instalar Agora
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Banner de Instalação do PWA ZenOS */}
       <AnimatePresence>
         {showInstallBanner && (

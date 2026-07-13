@@ -1,4 +1,3 @@
-
 {
   "name": "ZenOS Finance",
   "short_name": "ZenOS",
@@ -9,6 +8,11 @@
   "orientation": "portrait",
   "background_color": "#030712",
   "theme_color": "#4f46e5",
+  "display_override": ["window-controls-overlay", "minimal-ui"],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "prefer_related_applications": true,
   "icons": [
     {
       "src": "./icon.jpg",
