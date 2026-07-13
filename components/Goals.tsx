@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Goal, Account } from '../types';
+import { Goal, Account, Transaction } from '../types';
 import { Target, Trophy, Calendar, Plus, X, ArrowUpRight, Wallet, Edit2, TrendingUp, History } from 'lucide-react';
 import { parseLocalDate, formatCurrency, formatDisplayDate } from '../lib/utils';
 
@@ -8,14 +8,17 @@ interface GoalsProps {
   activeUserId: string;
   goals: Goal[];
   accounts: Account[];
+  transactions?: Transaction[];
   onAdd: (g: Goal) => void;
   onUpdate: (goals: Goal[]) => void;
   onDelete?: (id: string) => void;
-  onDeposit: (amount: number, accountId: string, goalTitle: string) => void;
+  onDeposit: (amount: number, accountId: string, goalTitle: string, goalId?: string) => void;
   onEdit?: (g: Goal) => void;
+  onEditContribution?: (tx: Transaction, newAmount: number) => void;
+  onDeleteContribution?: (tx: Transaction) => void;
 }
 
-export default function Goals({ activeUserId, goals, accounts, onAdd, onUpdate, onDeposit, onEdit, onDelete }: GoalsProps) {
+export default function Goals({ activeUserId, goals, accounts, transactions, onAdd, onUpdate, onDeposit, onEdit, onDelete, onEditContribution, onDeleteContribution }: GoalsProps) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [newGoal, setNewGoal] = useState({ title: '', target_amount: 0, deadline: '' });
@@ -63,7 +66,7 @@ export default function Goals({ activeUserId, goals, accounts, onAdd, onUpdate, 
     } : g));
     
     // Aciona a lógica de transação (débito da conta)
-    onDeposit(depositAmount, selectedAccountId, depositModal.goalTitle);
+    onDeposit(depositAmount, selectedAccountId, depositModal.goalTitle, depositModal.goalId);
     
     // Limpa estado
     setDepositModal(null);
@@ -319,8 +322,24 @@ export default function Goals({ activeUserId, goals, accounts, onAdd, onUpdate, 
                 <button onClick={() => setDetailsModal(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full"><X className="w-5 h-5 text-[#4e545a] dark:text-slate-600" /></button>
              </div>
              
-             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar text-center py-10">
-                 <p className="text-[#4e545a] dark:text-slate-700 font-black uppercase text-[10px] tracking-widest">Aguardando implementação do histórico sincronizado</p>
+             <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar pt-1">
+               {(!transactions || transactions.filter(t => t.goal_id === detailsModal.id).length === 0) ? (
+                 <div className="py-10 text-center">
+                   <p className="text-[#4e545a] dark:text-slate-700 font-black uppercase text-[10px] tracking-widest">Nenhum aporte registrado ainda.</p>
+                 </div>
+               ) : (
+                 transactions
+                   .filter(t => t.goal_id === detailsModal.id)
+                   .map(t => (
+                     <div key={t.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5 shadow-sm">
+                       <div className="text-left">
+                         <p className="text-xs font-bold text-slate-900 dark:text-white">{t.description || 'Aporte na Meta'}</p>
+                         <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 mt-0.5">{formatDisplayDate(t.date_at)}</p>
+                       </div>
+                       <span className="text-xs font-black text-emerald-500">+ R$ {formatCurrency(t.amount)}</span>
+                     </div>
+                   ))
+               )}
              </div>
 
              <div className="mt-8 pt-6 border-t border-slate-100 dark:border-white/5 flex justify-between items-center">

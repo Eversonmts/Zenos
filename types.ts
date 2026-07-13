@@ -110,6 +110,7 @@ export interface Transaction {
   note?: string | null;
   item?: string | null;
   location?: string | null;
+  goal_id?: string | null;
   created_at: string;
   updated_at: string;
 }
