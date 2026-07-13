@@ -798,6 +798,26 @@ export default function Settings({
 
                  <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-200 dark:border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
+                       <div className="p-3 bg-teal-500/10 rounded-2xl">
+                          <Download className="w-6 h-6 text-teal-500" />
+                       </div>
+                       <div>
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white">Baixar App (APK Android)</h3>
+                          <p className="text-xs text-slate-600 dark:text-slate-400">Arquivo de instalação direta, sem loja de apps</p>
+                       </div>
+                    </div>
+                    
+                    <a
+                      href="/downloads/zenos-app.apk"
+                      download="Zenos.apk"
+                      className="px-6 py-2 bg-teal-500 text-white rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-teal-400 transition-all shadow-lg shadow-teal-500/20"
+                    >
+                      Baixar
+                    </a>
+                 </div>
+
+                 <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-200 dark:border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl">
                           <Share2 className="w-6 h-6 text-emerald-500" />
                        </div>
