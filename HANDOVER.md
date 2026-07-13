@@ -56,6 +56,13 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
 * **Melhoria no Ciclo de Voz (Falar Novamente)**:
   * No modal do assistente [ZenosIAScannerModal.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/ZenosIAScannerModal.tsx), o botão de *"Voltar"* foi aprimorado para um botão de **"Falar Novamente"** com ícone de microfone. 
   * Ao ser clicado, ele reseta o formulário e reativa a gravação de áudio instantaneamente, facilitando correções rápidas por voz.
+* **NLP Local Offline Refinado (Ganho vs Gasto)**:
+  * Expandimos as regras de parsing de linguagem natural no helper `parseIntentLocally`.
+  * Ganhos, receitas, conquistas, depósitos e Pix de entrada são classificados automaticamente como `'income'` (receitas), enquanto despesas, compras, remédios e combustível são classificados como `'expense'` (despesas).
+  * A caixa de seleção de categorias no formulário agora é filtrada de forma dinâmica: exibe apenas categorias compatíveis com o tipo de transação (evitando categorização cruzada ou inválida).
+* **Melhoria da Voz do Assistente (Premium & Silenciador)**:
+  * **Seleção de Voz Humana**: O assistente busca dinamicamente as vozes de alta qualidade em português (como vozes do Google, Microsoft ou Apple) instaladas no sistema operacional do dispositivo para evitar falas robóticas.
+  * **Botão Mute (Silenciar)**: Adicionamos um controle de silenciamento de áudio (ícones `Volume2` e `VolumeX`) no cabeçalho do assistente. A preferência é lembrada e salva no `localStorage` sob a chave `zenos_voice_muted`.
 
 ---
 
