@@ -147,6 +147,7 @@ export default function Dashboard({
         // Use the all-time balance passed from App.tsx as the primary balance
         // current_balance is already calculated correctly in App.tsx
         displayBalance: account.current_balance,
+        balance: account.current_balance,
         monthFlow: monthAllocatedIncome - monthExpenses,
         monthIncome: monthAllocatedIncome, 
         monthExpenses: monthExpenses 
