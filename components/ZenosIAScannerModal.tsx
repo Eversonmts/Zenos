@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Camera, Upload, Sparkles, Loader2, Check, BrainCircuit, Mic, MicOff } from 'lucide-react';
+import { X, Camera, Upload, Sparkles, Loader2, Check, BrainCircuit, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { Account, Category, Transaction, Profile, Plan } from '../types';
 import { analyzeReceipt, parseIntentFromText } from '../services/gemini';
 
@@ -68,6 +68,15 @@ export default function ZenosIAScannerModal({
 
   // ID de compromisso a pagar
   const [targetCompromissoId, setTargetCompromissoId] = useState('');
+
+  // Controle de Mute (Silenciar)
+  const [isMuted, setIsMuted] = useState(() => localStorage.getItem('zenos_voice_muted') === 'true');
+  const toggleMute = () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
+    localStorage.setItem('zenos_voice_muted', String(newMuted));
+    showToast(newMuted ? "Voz do assistente silenciada." : "Voz do assistente ativada.", "info");
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -221,8 +230,10 @@ export default function ZenosIAScannerModal({
         setFormDate(data.date_at || new Date().toISOString().split('T')[0]);
         setFormAccountId(accounts[0]?.id || '');
 
-        const matchedCat = categories.find(c => c.name.toLowerCase().includes(data.category?.toLowerCase() || ''));
-        setFormCategoryId(matchedCat?.id || categories[0]?.id || '');
+        // Busca categoria compatível com o tipo da transação (income/expense)
+        const typeCategories = categories.filter(c => c.type === (isIncomeVal ? 'income' : 'expense'));
+        const matchedCat = typeCategories.find(c => c.name.toLowerCase().includes(data.category?.toLowerCase() || ''));
+        setFormCategoryId(matchedCat?.id || typeCategories[0]?.id || '');
 
         if (res.action === 'CREATE_GOAL') {
           setGoalTargetAmount(data.target_amount || data.amount || 0);
@@ -251,11 +262,32 @@ export default function ZenosIAScannerModal({
   };
 
   const speakText = (text: string) => {
-    if (!('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window) || isMuted) return;
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'pt-BR';
+      
+      // Procura e seleciona uma voz em português mais humana
+      const voices = window.speechSynthesis.getVoices();
+      const ptVoices = voices.filter(v => v.lang.includes('pt-BR') || v.lang.includes('pt'));
+      
+      if (ptVoices.length > 0) {
+        // Tenta encontrar vozes conhecidas por serem naturais no Chrome, Edge ou Safari
+        const premiumVoice = ptVoices.find(v => 
+          v.name.includes('Google') || 
+          v.name.includes('Natural') || 
+          v.name.includes('Microsoft') || 
+          v.name.includes('Daniela') || 
+          v.name.includes('Maria')
+        );
+        utterance.voice = premiumVoice || ptVoices[0];
+      }
+      
+      // Ajustes de velocidade e tonalidade para soar mais natural e menos robótica
+      utterance.rate = 1.0; 
+      utterance.pitch = 1.0; 
+      
       window.speechSynthesis.speak(utterance);
     } catch (err) {
       console.error(err);
@@ -420,9 +452,19 @@ export default function ZenosIAScannerModal({
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Controle total por voz, foto ou texto</p>
             </div>
           </div>
-          <button onClick={() => { handleReset(); onClose(); }} className="p-2 hover:bg-slate-200 dark:hover:bg-white/5 rounded-xl transition-all">
-            <X className="w-5 h-5 text-slate-500" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button 
+              type="button"
+              onClick={toggleMute} 
+              className={`p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all ${isMuted ? 'text-rose-500' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
+              title={isMuted ? "Ativar som" : "Silenciar assistente"}
+            >
+              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+            </button>
+            <button onClick={() => { handleReset(); onClose(); }} className="p-2 hover:bg-slate-200 dark:hover:bg-white/5 rounded-xl transition-all">
+              <X className="w-5 h-5 text-slate-500" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -556,9 +598,12 @@ export default function ZenosIAScannerModal({
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{formType === 'income' ? 'Categoria de Ganhos' : 'Categoria de Gastos'}</label>
                     <select className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-800 dark:text-white font-bold" value={formCategoryId} onChange={e => setFormCategoryId(e.target.value)}>
                       <option value="">Nenhuma Categoria</option>
-                      {categories.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
+                      {categories
+                        .filter(c => c.type === formType)
+                        .map(c => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))
+                      }
                     </select>
                   </div>
                 )}
@@ -650,8 +695,10 @@ const parseIntentLocally = (
 
   // 2. EXTRAÇÃO DE VALOR E CONTEXTO FINANCEIRO (Lançamentos de Gastos / Ganhos)
   const valueRegex = /(?:r\$|reais|valor|de|gastei)?\s*(\d+(?:[\.,]\d{1,2})?)/i;
-  const isExpense = /gasto|despesa|gastei|paguei|sa[íi]da/i.test(normalized);
-  const isIncome = /ganho|receita|recebi|ganhei|sal[áa]rio|entrada/i.test(normalized);
+  
+  // Regras robustas para determinar se é entrada (receita/ganho) ou saída (despesa/gasto)
+  const isIncome = /ganho|receita|recebi|ganhei|sal[áa]rio|entrada|conquista|pix|rendimento|lucro|venda|dep[oó]sito/i.test(normalized);
+  const isExpense = /gasto|despesa|gastei|paguei|sa[íi]da|comprei|abasteci|custo|compra|debito|d[eé]bito|perdi|aluguel|luz|agua|[aá]gua|internet|comida|almo[cç]o|janta|mercado|padaria|restaurante/i.test(normalized);
 
   if (isExpense || isIncome) {
     const valueMatch = normalized.match(valueRegex);
@@ -663,28 +710,38 @@ const parseIntentLocally = (
         // Extrai descrição limpando palavras-chave
         let description = normalized
           .replace(valueMatch[0], '')
-          .replace(/lan[cç]ar|adicionar|criar|gasto|despesa|gastei|paguei|recebi|ganhei|receita|ganho|entrada|de|com|para|reais/gi, '')
+          .replace(/lan[cç]ar|adicionar|criar|gasto|despesa|gastei|paguei|recebi|ganhei|receita|ganho|entrada|conquista|de|com|para|reais/gi, '')
           .trim();
         
         description = description.charAt(0).toUpperCase() + description.slice(1);
 
         // Adivinha categoria baseada em palavras-chave simples
-        let categoryName = isExpense ? 'Lazer' : 'Salário';
-        if (/comida|almo[cç]o|janta|mercado|restaurante|padaria/i.test(normalized)) categoryName = 'Alimentação';
-        else if (/combust[ií]vel|gasolina|carro|uber|t[aá]xi/i.test(normalized)) categoryName = 'Combustível';
-        else if (/aluguel|luz|agua|[aá]gua|internet|casa|moradia/i.test(normalized)) categoryName = 'Moradia';
+        let categoryName = isIncome ? 'Salário' : 'Lazer';
+        if (isIncome) {
+          if (/venda/i.test(normalized)) categoryName = 'Vendas';
+          else if (/rendimento|lucro|investimento/i.test(normalized)) categoryName = 'Rendimentos';
+          else if (/presente/i.test(normalized)) categoryName = 'Presente';
+          else if (/reembolso/i.test(normalized)) categoryName = 'Reembolso';
+        } else {
+          if (/comida|almo[cç]o|janta|mercado|restaurante|padaria|a[cç]ougue/i.test(normalized)) categoryName = 'Alimentação';
+          else if (/combust[ií]vel|gasolina|carro|uber|t[aá]xi|pedagio/i.test(normalized)) categoryName = 'Transporte';
+          else if (/aluguel|luz|agua|[aá]gua|internet|casa|moradia/i.test(normalized)) categoryName = 'Moradia';
+          else if (/rem[eé]dio|farm[aá]cia|m[eé]dico|hospital|sa[uú]de/i.test(normalized)) categoryName = 'Saúde';
+        }
 
-        const matchedCat = categories.find(c => c.name.toLowerCase().includes(categoryName.toLowerCase()));
+        const matchedCat = categories
+          .filter(c => c.type === (isIncome ? 'income' : 'expense'))
+          .find(c => c.name.toLowerCase().includes(categoryName.toLowerCase()));
 
         return {
           action: 'CREATE_TRANSACTION',
           data: {
-            description: description || (isExpense ? 'Gasto de Voz' : 'Receita de Voz'),
-            amount: isExpense ? -amount : amount,
-            category: matchedCat ? matchedCat.name : (categories[0]?.name || ''),
+            description: description || (isIncome ? 'Receita de Voz' : 'Gasto de Voz'),
+            amount: isIncome ? amount : -amount,
+            category: matchedCat ? matchedCat.name : '',
             date_at: new Date().toISOString().split('T')[0]
           },
-          speechResponse: `Entendi. Lançando ${isExpense ? 'gasto' : 'ganho'} de ${amount} reais para ${description || 'Voz'}. Confirme o lançamento.`
+          speechResponse: `Entendi. Lançando ${isIncome ? 'ganho' : 'gasto'} de ${amount} reais para ${description || 'Voz'}. Confirme o lançamento.`
         };
       }
     }
