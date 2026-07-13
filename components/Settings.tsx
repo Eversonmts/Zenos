@@ -530,33 +530,7 @@ export default function Settings({
                   </div>
                 )}
 
-                {/* Chave de API do Gemini (usada pelo Consultor IA) */}
-                <div className="p-6 bg-slate-50 dark:bg-[#0a0c14] rounded-3xl border border-slate-200 dark:border-white/5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl">
-                      <KeyRound className="w-5 h-5 text-indigo-500" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">Chave da API Gemini</p>
-                      <p className="text-[10px] text-slate-500">Usada pelo Consultor IA. Gere a sua em aistudio.google.com/apikey</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      placeholder="AIzaSy..."
-                      className="flex-1 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
-                      value={geminiKeyInput}
-                      onChange={e => { setGeminiKeyInput(e.target.value); setGeminiKeySaved(false); }}
-                    />
-                    <button
-                      onClick={handleSaveGeminiKey}
-                      className="px-5 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-500 transition-all shrink-0"
-                    >
-                      {geminiKeySaved ? <Check className="w-4 h-4" /> : 'Salvar'}
-                    </button>
-                  </div>
-                </div>
+
               </div>
             )}
 

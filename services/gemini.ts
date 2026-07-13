@@ -8,7 +8,12 @@ const getApiKey = () => {
     const userKey = localStorage.getItem('zenos_gemini_api_key');
     if (userKey) return userKey;
   } catch {}
-  return process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
+  
+  // Prioriza a chave de API das variáveis de ambiente da Vercel / Vite
+  const viteKey = import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined;
+  const processKey = typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : undefined;
+  
+  return viteKey || processKey;
 };
 
 const getAI = () => new GoogleGenAI({ apiKey: getApiKey() });
