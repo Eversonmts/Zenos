@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.zenos.finance",
+      "sha256_cert_fingerprints": [
+        "SUA_ASSINATURA_SHA256_DO_PLAY_STORE_CONSOLE_AQUI"
+      ]
+    }
+  }
+]
