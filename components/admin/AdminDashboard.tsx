@@ -89,8 +89,8 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
 
       // Carrega estatísticas, usuários e planos
       const [statsData, usersData, plansData] = await Promise.all([
-        adminService.getStats(),
-        adminService.listUsers(),
+        adminService.getStats(user.id),
+        adminService.listUsers(user.id),
         db.admin.plans.list()
       ]);
       
@@ -108,17 +108,17 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
       // Carrega dados adicionais baseados na aba ativa
       if (activeTab === 'gateway') {
         const [webhooksData, dunningData, receiptsData] = await Promise.all([
-          adminService.listWebhooks(),
-          adminService.listDunningAttempts(),
-          adminService.listReceipts()
+          adminService.listWebhooks(user.id),
+          adminService.listDunningAttempts(user.id),
+          adminService.listReceipts(undefined, user.id)
         ]);
         setWebhooks(webhooksData);
         setDunning(dunningData);
         setReceipts(receiptsData);
       } else if (activeTab === 'security') {
         const [auditData, ticketsData, healthData] = await Promise.all([
-          adminService.listAuditLogs(),
-          adminService.listSupportTickets(),
+          adminService.listAuditLogs(user.id),
+          adminService.listSupportTickets(user.id),
           adminService.getSystemHealth()
         ]);
         setAuditLogs(auditData);

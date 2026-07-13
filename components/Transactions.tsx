@@ -30,10 +30,11 @@ interface TransactionsProps {
   onAddSubcategory?: (sub: Subcategory) => void;
   preFilledData?: Partial<Transaction> | null;
   initialTypeFilter?: 'all' | TransactionType;
+  showToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 export default function Transactions({ 
-  activeUserId, transactions, accounts, categories, subcategories, onAdd, onDelete, onEdit, onAddCategory, onAddSubcategory, preFilledData, initialTypeFilter = 'all' 
+  activeUserId, transactions, accounts, categories, subcategories, onAdd, onDelete, onEdit, onAddCategory, onAddSubcategory, preFilledData, initialTypeFilter = 'all', showToast
 }: TransactionsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | TransactionType>(initialTypeFilter);
@@ -173,13 +174,40 @@ export default function Transactions({
     }
 
     if (!currentTx.description || !currentTx.amount || !finalCategoryId) {
-      alert("Descrição, valor e categoria são obrigatórios.");
+      if (showToast) {
+        showToast("Descrição, valor e categoria são obrigatórios.", "error");
+      } else {
+        alert("Descrição, valor e categoria são obrigatórios.");
+      }
+      return;
+    }
+
+    const txAmount = Number(currentTx.amount);
+    if (isNaN(txAmount) || txAmount <= 0) {
+      if (showToast) {
+        showToast("O valor da transação deve ser maior que zero.", "error");
+      } else {
+        alert("O valor da transação deve ser maior que zero.");
+      }
+      return;
+    }
+
+    if (txAmount > 999999999) {
+      if (showToast) {
+        showToast("O valor da transação não pode exceder R$ 999.999.999,00.", "error");
+      } else {
+        alert("O valor da transação não pode exceder R$ 999.999.999,00.");
+      }
       return;
     }
 
     if (currentTx.type === 'expense' && !currentTx.account_id) {
-       alert("Selecione um Pote (Conta) para este gasto.");
-       return;
+      if (showToast) {
+        showToast("Selecione um Pote (Conta) para este gasto.", "error");
+      } else {
+        alert("Selecione um Pote (Conta) para este gasto.");
+      }
+      return;
     }
 
     const transactionData: Transaction = { 

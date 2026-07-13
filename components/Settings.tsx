@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Category, Profile, Subcategory, Settings as SettingsType, Plan } from '../types';
 import { Settings as SettingsIcon, Plus, Trash2, Edit2, Check, X, Tag, Moon, Sun, Share2, CreditCard, Crown, Loader2, Clock, Database, Shield, Lock, Fingerprint, Cpu, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles, ChevronDown, ChevronUp, KeyRound } from 'lucide-react';
-import { formatDisplayDate } from '../lib/utils';
+import { formatDisplayDate, validateEmail, validateCPF } from '../lib/utils';
 import { db } from '../services/db';
 import { testSupabaseConnection } from '../services/supabase';
 import { CURRENT_VERSION, checkLatestVersion, applyAndReloadUpdate, publishNewVersion } from '../services/versionService';
@@ -56,6 +56,10 @@ export default function Settings({
     full_name: profile.full_name || '',
     email: profile.email || '',
     phone: profile.phone || '',
+    cpf: (profile as any).cpf || '',
+    income: (profile as any).income || 0,
+    profession: (profile as any).profession || '',
+    password: (profile as any).password || '',
   });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -241,6 +245,19 @@ export default function Settings({
   };
 
   const handleSaveProfile = () => {
+    if (!profileData.full_name || !profileData.full_name.trim()) {
+      showToast('Nome completo é obrigatório!', 'error');
+      return;
+    }
+    if (profileData.email && !validateEmail(profileData.email)) {
+      showToast('Por favor, informe um e-mail válido!', 'error');
+      return;
+    }
+    if (profileData.cpf && !validateCPF(profileData.cpf)) {
+      showToast('Por favor, informe um CPF válido!', 'error');
+      return;
+    }
+
     onUpdateProfile({
       ...profile,
       ...profileData

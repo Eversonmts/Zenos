@@ -1271,7 +1271,7 @@ export default function App() {
                     if (removed) {
                       updateAndSave((prev: Transaction[]) => prev.some(t => t.id === id) ? prev : [...prev, removed], setTransactions, db.saveTransactions);
                     }
-                    alert('Não foi possível excluir o lançamento. Verifique sua conexão e tente novamente.');
+                    showToast('Não foi possível excluir o lançamento. Verifique sua conexão e tente novamente.', 'error');
                   });
                 }}
                 onEdit={(updated) => updateAndSave((prev: Transaction[]) => prev.map(t => t.id === updated.id ? updated : t), setTransactions, db.saveTransactions)}
@@ -1279,6 +1279,7 @@ export default function App() {
                 onAddSubcategory={handleAddSubcategory}
                 preFilledData={preFilledTx}
                 initialTypeFilter={txFilter}
+                showToast={showToast}
               />
             )}
             {view === 'compromissos' && (

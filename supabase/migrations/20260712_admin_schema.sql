@@ -117,12 +117,48 @@ ALTER TABLE public.system_health_checks ENABLE ROW LEVEL SECURITY;
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean AS $$
 BEGIN
-  RETURN EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = auth.uid() AND role = 'admin'
-  );
+  -- Lendo diretamente do JWT de autenticação para máxima performance e zero recursão
+  RETURN coalesce(auth.jwt() -> 'user_metadata' ->> 'role', '') = 'admin' 
+         OR coalesce(auth.jwt() -> 'app_metadata' ->> 'role', '') = 'admin'
+         OR EXISTS (
+           SELECT 1 FROM auth.users
+           WHERE id = auth.uid()
+           AND (raw_user_meta_data->>'role' = 'admin' OR raw_app_meta_data->>'role' = 'admin')
+         );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger para sincronizar a role de public.profiles para auth.users.raw_user_meta_data
+CREATE OR REPLACE FUNCTION public.sync_profile_role_to_auth_users()
+RETURNS trigger AS $$
+BEGIN
+  UPDATE auth.users
+  SET raw_user_meta_data = jsonb_set(
+    coalesce(raw_user_meta_data, '{}'::jsonb),
+    '{role}',
+    to_jsonb(NEW.role)
+  )
+  WHERE id = NEW.id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Remove o trigger antigo se existir para evitar duplicação no re-run
+DROP TRIGGER IF EXISTS on_profile_role_changed ON public.profiles;
+
+CREATE TRIGGER on_profile_role_changed
+  AFTER INSERT OR UPDATE OF role ON public.profiles
+  FOR EACH ROW EXECUTE PROCEDURE public.sync_profile_role_to_auth_users();
+
+-- Atualização retroativa de roles no metadata do auth.users para usuários existentes
+UPDATE auth.users u
+SET raw_user_meta_data = jsonb_set(
+  coalesce(u.raw_user_meta_data, '{}'::jsonb),
+  '{role}',
+  to_jsonb(p.role)
+)
+FROM public.profiles p
+WHERE u.id = p.id;
 
 -- A. Políticas para tabela PROFILES
 CREATE POLICY "Admins can select all profiles" ON public.profiles FOR SELECT TO authenticated USING (public.is_admin());
