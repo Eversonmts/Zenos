@@ -45,10 +45,23 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Implementamos fallback inteligente: comandos locais não reconhecidos são encaminhados automaticamente à API do Gemini na nuvem.
 * **Resultado**: Comandos de voz imediatos, gratuitos e resilientes integrados ao botão principal do assistente.
 
+### 6. Reestruturação e Distribuição dos Botões (UX & Layout)
+* **Microfone Centralizado no FAB (`+`)**: 
+  * O menu radial flutuante agora conta com **5 opções** no [BottomNav.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/BottomNav.tsx).
+  * O **Microfone (Comando de Voz)** foi inserido na posição central de destaque (`bottom: 190, left: '50%'`), com o gradiente roxo/azul oficial da marca, rodeado pelas 4 ações de atalho: *Transferência* (esquerda baixo), *Receita* (esquerda cima), *Gasto Cartão* (direita cima) e *Gasto* (direita baixo).
+  * O callback em [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx) foi adaptado para interceptar a ação de voz e abrir o scanner.
+* **Central de Notificações (Sino Superior)**: 
+  * O botão superior direito do [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) foi redesenhado com o ícone **`Bell`** (Notificações e Mensagens), deixando de acionar a voz.
+  * O clique exibe um toast informando *"Nenhuma nova notificação ou mensagem no momento"*.
+* **Melhoria no Ciclo de Voz (Falar Novamente)**:
+  * No modal do assistente [ZenosIAScannerModal.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/ZenosIAScannerModal.tsx), o botão de *"Voltar"* foi aprimorado para um botão de **"Falar Novamente"** com ícone de microfone. 
+  * Ao ser clicado, ele reseta o formulário e reativa a gravação de áudio instantaneamente, facilitando correções rápidas por voz.
+
 ---
 
 ## 🧪 Status de Builds e Testes
 * **Compilação TypeScript**: Rodando `npx tsc --noEmit` de forma recorrente com 100% de sucesso e sem quebra de tipos.
+* **Servidor Dev Local**: Rodando na porta 3000 (`http://localhost:3000/`) como tarefa de background para visualização local imediata.
 * **Status Git**: Repositório remoto no GitHub sincronizado na branch `main`.
 
 ---
