@@ -182,3 +182,61 @@ CREATE POLICY "Admins only system_health_checks" ON public.system_health_checks 
 -- D. Políticas para SUPPORT_TICKETS (Usuários normais gerenciam seus próprios, admins gerenciam tudo)
 CREATE POLICY "Users can manage support_tickets" ON public.support_tickets FOR ALL TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Admins can manage all support_tickets" ON public.support_tickets FOR ALL TO authenticated USING (public.is_admin());
+
+-- E. Função de Sincronização Geral de Usuários do Auth para Perfis e Configurações (Apenas Administradores)
+CREATE OR REPLACE FUNCTION public.sync_auth_users_to_profiles()
+RETURNS void AS $$
+BEGIN
+  -- Segurança: Apenas administradores do SaaS podem invocar a sincronização
+  IF NOT public.is_admin() THEN
+    RAISE EXCEPTION 'Acesso negado: Apenas administradores podem sincronizar os usuários.';
+  END IF;
+
+  -- 1. Insere profiles faltantes a partir da tabela auth.users
+  INSERT INTO public.profiles (id, email, full_name, role, status, created_at, updated_at, menu_size)
+  SELECT 
+    u.id, 
+    u.email, 
+    coalesce(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1)), 
+    'user', 
+    'active', 
+    u.created_at, 
+    u.updated_at,
+    'md'
+  FROM auth.users u
+  LEFT JOIN public.profiles p ON u.id = p.id
+  WHERE p.id IS NULL
+  ON CONFLICT (id) DO NOTHING;
+
+  -- 2. Garante que todos os perfis tenham settings correspondentes
+  INSERT INTO public.settings (user_id)
+  SELECT p.id 
+  FROM public.profiles p
+  LEFT JOIN public.settings s ON p.id = s.user_id
+  WHERE s.id IS NULL
+  ON CONFLICT (user_id) DO NOTHING;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Sincronização direta na migração (sem passar pela função RPC para evitar bloqueio por auth.uid())
+INSERT INTO public.profiles (id, email, full_name, role, status, created_at, updated_at, menu_size)
+SELECT 
+  u.id, 
+  u.email, 
+  coalesce(u.raw_user_meta_data->>'full_name', split_part(u.email, '@', 1)), 
+  'user', 
+  'active', 
+  u.created_at, 
+  u.updated_at,
+  'md'
+FROM auth.users u
+LEFT JOIN public.profiles p ON u.id = p.id
+WHERE p.id IS NULL
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.settings (user_id)
+SELECT p.id 
+FROM public.profiles p
+LEFT JOIN public.settings s ON p.id = s.user_id
+WHERE s.id IS NULL
+ON CONFLICT (user_id) DO NOTHING;

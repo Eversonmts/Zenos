@@ -576,6 +576,16 @@ export const adminService = {
     }
   },
 
+  syncUsersDatabase: async (performerId?: string): Promise<void> => {
+    if (isTestUser(performerId)) return;
+    try {
+      const { error } = await supabase.rpc('sync_auth_users_to_profiles');
+      if (error) throw error;
+    } catch (e) {
+      console.warn("Failed to invoke sync_auth_users_to_profiles RPC:", e);
+    }
+  },
+
   toggleUserBlock: async (performerId: string, userId: string, currentStatus: UserStatus): Promise<void> => {
     const newStatus: UserStatus = currentStatus === 'blocked' ? 'active' : 'blocked';
     

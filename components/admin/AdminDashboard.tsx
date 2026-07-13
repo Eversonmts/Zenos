@@ -84,6 +84,9 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
   const loadData = async () => {
     setLoading(true);
     try {
+      // Sincroniza a tabela de usuários de autenticação do Supabase com a tabela de profiles em produção
+      await adminService.syncUsersDatabase(user.id);
+
       // Garante que os planos padrão Básico, Premium e Pro existam no Supabase
       await adminService.seedDefaultPlans();
 
