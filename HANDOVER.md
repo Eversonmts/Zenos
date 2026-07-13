@@ -64,6 +64,16 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Seleção de Voz Humana**: O assistente busca dinamicamente as vozes de alta qualidade em português (como vozes do Google, Microsoft ou Apple) instaladas no sistema operacional do dispositivo para evitar falas robóticas.
   * **Botão Mute (Silenciar)**: Adicionamos um controle de silenciamento de áudio (ícones `Volume2` e `VolumeX`) no cabeçalho do assistente. A preferência é lembrada e salva no `localStorage` sob a chave `zenos_voice_muted`.
 
+### 8. Instalabilidade Real do PWA (Service Worker & Prompt Nativo)
+* **Criação do Service Worker (`sw.js`)**: 
+  * Criamos o arquivo [sw.js](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/public/sw.js) na pasta `public/` para responder a eventos de interceptação de rede (`fetch`), atendendo ao requisito técnico obrigatório do Chrome/Safari para tornar o aplicativo verdadeiramente instalável no telefone/PC.
+  * O registro do Service Worker foi movido de condicional (apenas produção https) para **global** no [index.html](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/index.html) para permitir testes locais no localhost.
+* **Banner de Instalação Nativa (In-App)**:
+  * Criamos no [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx) uma escuta para o evento `beforeinstallprompt` do navegador.
+  * Quando o navegador sinaliza que o aplicativo pode ser instalado, exibimos um **banner premium flutuante** na interface do usuário com a logo oficial, título de instalação e botão "Instalar".
+  * O clique em "Instalar" invoca o prompt nativo de instalação do navegador, baixando e instalando o ZenOS de fato no sistema do celular ou computador do usuário.
+  * Adicionamos controle de descarte: se o usuário clicar em fechar (`X`), o banner é recolhido e a ação é memorizada no `sessionStorage` para não incomodar sua navegação durante a sessão ativa.
+
 ---
 
 ## 🧪 Status de Builds e Testes
