@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, Receipt, Target, BrainCircuit, Menu, X, Archive, 
   AlertCircle, Plus, Settings as SettingsIcon, Camera, Mic, Loader2, StopCircle, LogOut, Shield, Wallet, Lock, Crown, Check, CreditCard as CreditCardIcon, ShoppingBag, Activity, ArrowUpCircle, ArrowDownCircle, Eye, Fingerprint,
@@ -76,6 +77,45 @@ export default function App() {
 
   // Estado para verificar atualização pendente do aplicativo
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+
+  // --- PWA INSTALL BANNER STATES ---
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      const isClosed = sessionStorage.getItem('zenos_install_banner_closed') === 'true';
+      if (!isClosed) {
+        setShowInstallBanner(true);
+      }
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    const handleAppInstalled = () => {
+      setDeferredPrompt(null);
+      setShowInstallBanner(false);
+      showToast("ZenOS instalado com sucesso! Acesse pela sua tela inicial.", "success");
+    };
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('Usuário aceitou instalar o PWA');
+    }
+    setDeferredPrompt(null);
+    setShowInstallBanner(false);
+  };
 
   useEffect(() => {
     const checkAppUpdate = async () => {
@@ -1061,6 +1101,45 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full max-w-[100vw] flex bg-slate-50 dark:bg-[#030712] text-[#1c1f22] dark:text-slate-200 font-sans overflow-hidden overflow-x-hidden select-none transition-colors duration-300">
+      {/* Banner de Instalação do PWA ZenOS */}
+      <AnimatePresence>
+        {showInstallBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-24 left-4 right-4 md:left-auto md:right-6 md:max-w-sm bg-white/95 dark:bg-[#0a0c14]/95 backdrop-blur-md border border-slate-200 dark:border-white/5 rounded-[2rem] p-4 shadow-2xl z-[99] flex items-center justify-between gap-4 animate-in slide-in-from-bottom-5 duration-300"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md flex-shrink-0 bg-[#030712] flex items-center justify-center border border-white/5">
+                <img src="/icon.jpg" alt="ZenOS Logo" className="w-8 h-8 object-contain rounded-lg" />
+              </div>
+              <div className="text-left">
+                <h4 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Instalar ZenOS App</h4>
+                <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-relaxed">Instale na sua tela inicial para acesso offline e melhor desempenho.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button 
+                onClick={handleInstallApp}
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-md transition-all active:scale-95"
+              >
+                Instalar
+              </button>
+              <button 
+                onClick={() => {
+                  setShowInstallBanner(false);
+                  sessionStorage.setItem('zenos_install_banner_closed', 'true');
+                }}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all text-slate-400 hover:text-slate-600 dark:hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {simulatedUser && (
         <div className="fixed top-0 left-0 right-0 bg-indigo-600 text-white px-4 py-2 z-[100] flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
