@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, Receipt, Target, BrainCircuit, Menu, X, Archive, 
   AlertCircle, Plus, Settings as SettingsIcon, Camera, Mic, Loader2, StopCircle, LogOut, Shield, Wallet, Lock, Crown, Check, CreditCard as CreditCardIcon, ShoppingBag, Activity, ArrowUpCircle, ArrowDownCircle, Eye, Fingerprint,
@@ -12,6 +11,12 @@ import Transactions from './components/Transactions';
 import Compromissos from './components/Compromissos';
 import Potes from './components/Potes';
 import Goals from './components/Goals';
+import InstallPrompt from './components/InstallPrompt';
+import { initPwaInstallListener } from './services/pwaInstall';
+
+// Registered at module load (not inside a component) so we never miss the
+// browser's one-shot beforeinstallprompt event, which can fire very early.
+initPwaInstallListener();
 import Settings from './components/Settings';
 import AdminDashboard from './components/admin/AdminDashboard';
 import LoginModal from './components/LoginModal';
@@ -78,7 +83,6 @@ export default function App() {
   // Estado para verificar atualização pendente do aplicativo
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
 
-
   useEffect(() => {
     const checkAppUpdate = async () => {
       try {
@@ -136,55 +140,6 @@ export default function App() {
   const [pinBuffer, setPinBuffer] = useState('');
   const [loading, setLoading] = useState(true);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-
-  // --- PWA INSTALL BANNER STATES ---
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallBanner, setShowInstallBanner] = useState(false);
-  const [showInstallModal, setShowInstallModal] = useState(false);
-
-  useEffect(() => {
-    if (user && deferredPrompt) {
-      const isAlreadyAsked = localStorage.getItem('zenos_install_prompt_asked_v1') === 'true';
-      if (!isAlreadyAsked) {
-        setShowInstallModal(true);
-      }
-    }
-  }, [user, deferredPrompt]);
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      const isClosed = sessionStorage.getItem('zenos_install_banner_closed') === 'true';
-      if (!isClosed) {
-        setShowInstallBanner(true);
-      }
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    const handleAppInstalled = () => {
-      setDeferredPrompt(null);
-      setShowInstallBanner(false);
-      showToast("ZenOS instalado com sucesso! Acesse pela sua tela inicial.", "success");
-    };
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstallApp = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      console.log('Usuário aceitou instalar o PWA');
-    }
-    setDeferredPrompt(null);
-    setShowInstallBanner(false);
-  };
 
   useEffect(() => {
     // Timeout safety for initial load
@@ -805,7 +760,7 @@ export default function App() {
     showToast('Fatura paga com sucesso!');
   };
 
-  const handleGoalDeposit = (amount: number, account_id: string, goalTitle: string) => {
+  const handleGoalDeposit = (amount: number, account_id: string, goalTitle: string, goalId: string) => {
     if (!activeUser) return;
     const tx: Transaction = {
       id: crypto.randomUUID(),
@@ -820,10 +775,37 @@ export default function App() {
       payment_method: 'Aporte Meta',
       is_recurring: false,
       note: '',
+      goal_id: goalId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
     handleAddTransaction(tx);
+  };
+
+  // Recalcula o valor acumulado de uma meta a partir das transações de aporte
+  // REAIS vinculadas a ela (goal_id), em vez de manter um contador solto que
+  // pode ficar dessincronizado quando um aporte é editado ou excluído.
+  const recalculateGoalAmount = (goalId: string, txs: Transaction[]) => {
+    const total = txs.filter(t => t.goal_id === goalId).reduce((sum, t) => sum + t.amount, 0);
+    updateAndSave((prev: Goal[]) => prev.map(g => g.id === goalId ? { ...g, current_amount: total, updated_at: new Date().toISOString() } : g), setGoals, db.saveGoals);
+  };
+
+  const handleEditContribution = (tx: Transaction, newAmount: number) => {
+    const updatedTx = { ...tx, amount: newAmount, updated_at: new Date().toISOString() };
+    updateAndSave((prev: Transaction[]) => {
+      const next = prev.map(t => t.id === tx.id ? updatedTx : t);
+      if (tx.goal_id) recalculateGoalAmount(tx.goal_id, next);
+      return next;
+    }, setTransactions, db.saveTransactions);
+  };
+
+  const handleDeleteContribution = (tx: Transaction) => {
+    db.deleteRow('transactions', tx.id).catch(err => console.error(err));
+    updateAndSave((prev: Transaction[]) => {
+      const next = prev.filter(t => t.id !== tx.id);
+      if (tx.goal_id) recalculateGoalAmount(tx.goal_id, next);
+      return next;
+    }, setTransactions, db.saveTransactions);
   };
 
   const handleMercadoPagoCheckout = () => {
@@ -901,13 +883,7 @@ export default function App() {
     }
   };
 
-  const handleQuickAction = (type: 'income' | 'expense' | 'transfer' | 'card' | 'voice') => {
-    if (type === 'voice') {
-      setIsAIScannerOpen(true);
-      setIsFabOpen(false);
-      return;
-    }
-
+  const handleQuickAction = (type: 'income' | 'expense' | 'transfer' | 'card') => {
     if (type === 'card') {
       setShowCardExpenseModal(true);
       setIsFabOpen(false);
@@ -1112,94 +1088,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full max-w-[100vw] flex bg-slate-50 dark:bg-[#030712] text-[#1c1f22] dark:text-slate-200 font-sans overflow-hidden overflow-x-hidden select-none transition-colors duration-300">
-      {/* Modal Central de Instalação Proeminente pós-login */}
-      <AnimatePresence>
-        {showInstallModal && (
-          <div className="fixed inset-0 z-[110] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-[#0a0c14] border border-slate-200 dark:border-white/5 rounded-[2.5rem] p-6 max-w-sm w-full text-center space-y-6 shadow-2xl relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
-              
-              <div className="w-20 h-20 rounded-[2rem] overflow-hidden shadow-lg mx-auto bg-[#030712] flex items-center justify-center border border-white/5 animate-pulse">
-                <img src="/icon.jpg" alt="ZenOS Logo" className="w-16 h-16 object-contain rounded-2xl" />
-              </div>
-              
-              <div className="space-y-2">
-                <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-wider">Instalar ZenOS Finance</h3>
-                <p className="text-xs text-slate-500 font-bold leading-relaxed max-w-xs mx-auto">
-                  Deseja instalar o ZenOS no seu telefone para ter acesso instantâneo pela tela inicial, modo offline e melhor velocidade?
-                </p>
-              </div>
-              
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => {
-                    setShowInstallModal(false);
-                    localStorage.setItem('zenos_install_prompt_asked_v1', 'true');
-                  }} 
-                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                >
-                  Mais Tarde
-                </button>
-                <button 
-                  onClick={() => {
-                    handleInstallApp();
-                    setShowInstallModal(false);
-                    localStorage.setItem('zenos_install_prompt_asked_v1', 'true');
-                  }} 
-                  className="flex-1 py-3 bg-gradient-to-tr from-indigo-600 to-purple-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-95 transition-all"
-                >
-                  Instalar Agora
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Banner de Instalação do PWA ZenOS */}
-      <AnimatePresence>
-        {showInstallBanner && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-24 left-4 right-4 md:left-auto md:right-6 md:max-w-sm bg-white/95 dark:bg-[#0a0c14]/95 backdrop-blur-md border border-slate-200 dark:border-white/5 rounded-[2rem] p-4 shadow-2xl z-[99] flex items-center justify-between gap-4 animate-in slide-in-from-bottom-5 duration-300"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md flex-shrink-0 bg-[#030712] flex items-center justify-center border border-white/5">
-                <img src="/icon.jpg" alt="ZenOS Logo" className="w-8 h-8 object-contain rounded-lg" />
-              </div>
-              <div className="text-left">
-                <h4 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Instalar ZenOS App</h4>
-                <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-relaxed">Instale na sua tela inicial para acesso offline e melhor desempenho.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <button 
-                onClick={handleInstallApp}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-md transition-all active:scale-95"
-              >
-                Instalar
-              </button>
-              <button 
-                onClick={() => {
-                  setShowInstallBanner(false);
-                  sessionStorage.setItem('zenos_install_banner_closed', 'true');
-                }}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-all text-slate-400 hover:text-slate-600 dark:hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {simulatedUser && (
         <div className="fixed top-0 left-0 right-0 bg-indigo-600 text-white px-4 py-2 z-[100] flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
@@ -1212,6 +1100,7 @@ export default function App() {
         </div>
       )}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <InstallPrompt />
       
       <input type="file" accept="image/*" capture="environment" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
 
@@ -1247,7 +1136,6 @@ export default function App() {
           onAddShoppingItem={handleAddShoppingItem}
           onPayCompromisso={handlePayCompromisso}
           showToast={showToast}
-          onNavigate={setView}
         />
       )}
 
@@ -1303,7 +1191,7 @@ export default function App() {
              </div>
              <div className="flex flex-col overflow-hidden">
                 <span className="text-xs font-bold text-[#212529] dark:text-white truncate">{user.full_name || 'Usuário'}</span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-widest">{user.role}</span>
+                <span className="text-[10px] text-[#4e545a] dark:text-slate-600 uppercase tracking-widest">{user.role}</span>
              </div>
           </button>
         </div>
@@ -1314,14 +1202,14 @@ export default function App() {
              if (items.length === 0) return null;
              return (
               <div key={sectionName} className="space-y-1">
-                <h4 className="px-4 text-[8px] font-black text-slate-550 dark:text-slate-400 uppercase tracking-[0.3em] lg:hidden xl:block">{sectionName}</h4>
+                <h4 className="px-4 text-[8px] font-black text-[#4e545a] dark:text-slate-700 uppercase tracking-[0.3em] lg:hidden xl:block">{sectionName}</h4>
                 <div className="space-y-1">
                   {items.map((item) => (
                     <button key={item.id} onClick={() => {
                         if ((item.id as string) === 'categories') { setView('settings'); setSettingsTab('categories'); }
                         else setView(item.id);
                         setIsSidebarOpen(false);
-                      }} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all min-h-[44px] ${view === item.id || ((item.id as string) === 'categories' && view === 'settings' && settingsTab === 'categories') ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/10' : 'text-slate-500 dark:text-slate-400 hover:text-[#212529] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'}`}>
+                      }} className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all min-h-[44px] ${view === item.id || ((item.id as string) === 'categories' && view === 'settings' && settingsTab === 'categories') ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/10' : 'text-[#4e545a] dark:text-slate-600 hover:text-[#212529] dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/40'}`}>
                       <item.icon className={`w-5 h-5 flex-shrink-0 ${view === item.id ? 'text-white' : ''}`} />
                       <span className="font-bold text-sm lg:hidden xl:block flex items-center gap-1.5">
                         {item.label}
@@ -1396,7 +1284,7 @@ export default function App() {
                   setView('transactions');
                   setTxFilter(type);
                 }}
-                onOpenAIScanner={() => showToast('Nenhuma nova notificação ou mensagem no momento.', 'info')}
+                onOpenAIScanner={() => setIsAIScannerOpen(true)}
               />
             )}
             {view === 'transactions' && (
@@ -1417,7 +1305,7 @@ export default function App() {
                     if (removed) {
                       updateAndSave((prev: Transaction[]) => prev.some(t => t.id === id) ? prev : [...prev, removed], setTransactions, db.saveTransactions);
                     }
-                    showToast('Não foi possível excluir o lançamento. Verifique sua conexão e tente novamente.', 'error');
+                    alert('Não foi possível excluir o lançamento. Verifique sua conexão e tente novamente.');
                   });
                 }}
                 onEdit={(updated) => updateAndSave((prev: Transaction[]) => prev.map(t => t.id === updated.id ? updated : t), setTransactions, db.saveTransactions)}
@@ -1425,7 +1313,6 @@ export default function App() {
                 onAddSubcategory={handleAddSubcategory}
                 preFilledData={preFilledTx}
                 initialTypeFilter={txFilter}
-                showToast={showToast}
               />
             )}
             {view === 'compromissos' && (
@@ -1494,9 +1381,12 @@ export default function App() {
                 activeUserId={activeUser.id}
                 goals={goals} 
                 accounts={processedAccounts}
+                transactions={transactions}
                 onAdd={(g) => updateAndSave((prev: Goal[]) => [...prev, g], setGoals, db.saveGoals)}
                 onUpdate={(newGoals) => updateAndSave(newGoals, setGoals, db.saveGoals)}
                 onDeposit={handleGoalDeposit}
+                onEditContribution={handleEditContribution}
+                onDeleteContribution={handleDeleteContribution}
                 onEdit={(g) => updateAndSave((prev: Goal[]) => prev.map(i => i.id === g.id ? g : i), setGoals, db.saveGoals)}
                 onDelete={(id) => {
                   db.deleteRow('goals', id).catch(err => console.error(err));
