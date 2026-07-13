@@ -850,7 +850,13 @@ export default function App() {
     }
   };
 
-  const handleQuickAction = (type: 'income' | 'expense' | 'transfer' | 'card') => {
+  const handleQuickAction = (type: 'income' | 'expense' | 'transfer' | 'card' | 'voice') => {
+    if (type === 'voice') {
+      setIsAIScannerOpen(true);
+      setIsFabOpen(false);
+      return;
+    }
+
     if (type === 'card') {
       setShowCardExpenseModal(true);
       setIsFabOpen(false);
@@ -1251,7 +1257,7 @@ export default function App() {
                   setView('transactions');
                   setTxFilter(type);
                 }}
-                onOpenAIScanner={() => setIsAIScannerOpen(true)}
+                onOpenAIScanner={() => showToast('Nenhuma nova notificação ou mensagem no momento.', 'info')}
               />
             )}
             {view === 'transactions' && (

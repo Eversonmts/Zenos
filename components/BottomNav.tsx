@@ -11,14 +11,15 @@ import {
   TrendingUp,
   TrendingDown,
   CreditCard,
-  Repeat
+  Repeat,
+  Mic
 } from 'lucide-react';
 import { AppView } from '../types';
 
 interface BottomNavProps {
   currentView: AppView;
   onNavigate: (view: AppView) => void;
-  onQuickAction: (type: 'income' | 'expense' | 'transfer' | 'card') => void;
+  onQuickAction: (type: 'income' | 'expense' | 'transfer' | 'card' | 'voice') => void;
   onToggleSidebar: () => void;
   containerRef?: React.RefObject<HTMLDivElement>;
   txFilter?: 'all' | 'income' | 'expense';
@@ -46,6 +47,7 @@ export default function BottomNav({ currentView, onNavigate, onQuickAction, onTo
   const quickActions = [
     { id: 'transfer', label: 'Transferência', icon: Repeat, color: 'bg-white', iconColor: 'text-indigo-600', position: { bottom: 100, left: '18%' } },
     { id: 'income', label: 'Receita', icon: TrendingUp, color: 'bg-white', iconColor: 'text-emerald-600', position: { bottom: 220, left: '30%' } },
+    { id: 'voice', label: 'Voz', icon: Mic, color: 'bg-gradient-to-tr from-indigo-600 to-purple-600', iconColor: 'text-white', position: { bottom: 190, left: '50%' } },
     { id: 'card', label: 'Gasto cartão', icon: CreditCard, color: 'bg-white', iconColor: 'text-cyan-600', position: { bottom: 220, left: '70%' } },
     { id: 'expense', label: 'Gasto', icon: TrendingDown, color: 'bg-white', iconColor: 'text-rose-600', position: { bottom: 100, left: '82%' } },
   ];

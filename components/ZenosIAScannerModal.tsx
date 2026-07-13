@@ -573,7 +573,16 @@ export default function ZenosIAScannerModal({
 
               {/* Botões de Ação */}
               <div className="flex gap-2 pt-4 border-t border-slate-100 dark:border-white/5">
-                <button type="button" onClick={handleReset} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300 transition-all">Voltar</button>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    handleReset();
+                    setTimeout(() => startVoiceCommand(), 200);
+                  }} 
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 transition-all flex items-center justify-center gap-1.5 font-bold"
+                >
+                  <Mic className="w-3.5 h-3.5" /> Falar Novamente
+                </button>
                 <button type="submit" className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-1.5">
                   <Check className="w-4 h-4" /> Confirmar e Criar
                 </button>
