@@ -19,6 +19,7 @@ interface ZenosIAScannerModalProps {
   onAddShoppingItem: (name: string, qty?: string) => void;
   onPayCompromisso: (compromissoId: string, accountId: string, amount: number) => void;
   showToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  onNavigate?: (view: any) => void;
 }
 
 export default function ZenosIAScannerModal({
@@ -36,7 +37,8 @@ export default function ZenosIAScannerModal({
   onAddTask,
   onAddShoppingItem,
   onPayCompromisso,
-  showToast
+  showToast,
+  onNavigate
 }: ZenosIAScannerModalProps) {
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export default function ZenosIAScannerModal({
   // States do formulário dinâmico
   const [formDescription, setFormDescription] = useState('');
   const [formAmount, setFormAmount] = useState(0);
+  const [formType, setFormType] = useState<'expense' | 'income'>('expense');
   const [formDate, setFormDate] = useState('');
   const [formCategoryId, setFormCategoryId] = useState('');
   const [formAccountId, setFormAccountId] = useState('');
@@ -175,22 +178,46 @@ export default function ZenosIAScannerModal({
   const handleProcessVoiceText = async (text: string) => {
     setLoading(true);
     try {
-      // Passa os compromissos ativos e categorias para o prompt contextual
-      const activeCompromissos = compromissos.filter(c => !c.status || c.status !== 'paid');
-      const context = {
-        compromissos: activeCompromissos.map(c => ({ id: c.id, title: c.title, amount: c.amount })),
-        categories: categories.map(c => c.name),
-        accounts: accounts.map(a => a.name)
-      };
+      // 1. Tenta processar o áudio localmente (Offline / Sem gastar API do Gemini)
+      const localRes = parseIntentLocally(text, categories, accounts, compromissos);
+      
+      let res = localRes;
+      if (!res) {
+        // Fallback: Se não detectou comando local direto, consulta a API do Gemini
+        const activeCompromissos = compromissos.filter(c => !c.status || c.status !== 'paid');
+        const context = {
+          compromissos: activeCompromissos.map(c => ({ id: c.id, title: c.title, amount: c.amount })),
+          categories: categories.map(c => c.name),
+          accounts: accounts.map(a => a.name)
+        };
+        res = await parseIntentFromText(text, context);
+      }
 
-      const res = await parseIntentFromText(text, context);
       if (res && res.action && res.data) {
+        // Se for comando de navegação, executa direto e fecha o modal
+        if (res.action === 'NAVIGATE' as any) {
+          showToast(res.speechResponse || "Navegando...", "success");
+          if (res.speechResponse) {
+            speakText(res.speechResponse);
+          }
+          if (onNavigate && res.data.target) {
+            onNavigate(res.data.target);
+          }
+          onClose();
+          return;
+        }
+
         setCurrentAction(res.action);
         
-        // Mapeamento dinâmico
+        // Mapeamento dinâmico de dados
         const data = res.data;
-        setFormDescription(data.description || '');
-        setFormAmount(data.amount || 0);
+        setFormDescription(data.description || data.title || '');
+        setFormAmount(Math.abs(data.amount || data.target_amount || 0));
+        
+        // Determina o tipo (receita / despesa) a partir do valor ou tipo inferido
+        const isIncomeVal = (data.amount !== undefined ? data.amount : (data.type === 'income' ? 1 : -1)) > 0;
+        setFormType(isIncomeVal ? 'income' : 'expense');
+        
         setFormDate(data.date_at || new Date().toISOString().split('T')[0]);
         setFormAccountId(accounts[0]?.id || '');
 
@@ -209,7 +236,7 @@ export default function ZenosIAScannerModal({
           setFormAmount(data.amount || 0);
         }
 
-        showToast("Intenção processada por Zenos IA!", "success");
+        showToast(localRes ? "Comando local reconhecido!" : "Intenção processada por Zenos IA!", "success");
         if (res.speechResponse) {
           speakText(res.speechResponse);
         }
@@ -247,7 +274,7 @@ export default function ZenosIAScannerModal({
             user_id: activeUser.id,
             description: formDescription,
             amount: Number(formAmount),
-            type: formAmount < 0 ? 'expense' : 'expense', // default derived or model-supplied
+            type: formType,
             category_id: formCategoryId || null,
             subcategory_id: null,
             account_id: formAccountId,
@@ -526,7 +553,7 @@ export default function ZenosIAScannerModal({
                 {/* Categorias (Apenas para Transações normais) */}
                 {currentAction === 'CREATE_TRANSACTION' && (
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Categoria de Gastos</label>
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{formType === 'income' ? 'Categoria de Ganhos' : 'Categoria de Gastos'}</label>
                     <select className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-white/5 rounded-xl text-xs outline-none text-slate-800 dark:text-white font-bold" value={formCategoryId} onChange={e => setFormCategoryId(e.target.value)}>
                       <option value="">Nenhuma Categoria</option>
                       {categories.map(c => (
@@ -557,4 +584,141 @@ export default function ZenosIAScannerModal({
       </div>
     </div>
   );
+}
+
+// Parser Local Offline de Intenções por Regras/Regex
+const parseIntentLocally = (
+  text: string, 
+  categories: Category[], 
+  accounts: Account[], 
+  compromissos: any[]
+): { action: string; data: any; speechResponse?: string } | null => {
+  const normalized = text.toLowerCase().trim();
+
+  // 1. NAVEGAÇÃO DE TELA (Offline/Local)
+  if (/calend[aá]rio/i.test(normalized)) {
+    return {
+      action: 'NAVIGATE',
+      data: { target: 'calendar' },
+      speechResponse: 'Abrindo o calendário para você.'
+    };
+  }
+  if (/compromisso/i.test(normalized) && !/lan[cç]ar|adicionar|criar/i.test(normalized)) {
+    return {
+      action: 'NAVIGATE',
+      data: { target: 'compromissos' },
+      speechResponse: 'Abrindo seus compromissos.'
+    };
+  }
+  if (/anota[cç][oõ]es|nota/i.test(normalized) && !/lan[cç]ar|adicionar|criar|anotar/i.test(normalized)) {
+    return {
+      action: 'NAVIGATE',
+      data: { target: 'notes' },
+      speechResponse: 'Abrindo suas anotações e diário.'
+    };
+  }
+  if (/cart[oõ]es/i.test(normalized)) {
+    return {
+      action: 'NAVIGATE',
+      data: { target: 'cartoes' },
+      speechResponse: 'Abrindo seus cartões de crédito.'
+    };
+  }
+  if (/meta/i.test(normalized) && !/lan[cç]ar|adicionar|criar/i.test(normalized)) {
+    return {
+      action: 'NAVIGATE',
+      data: { target: 'goals' },
+      speechResponse: 'Visualizando suas metas.'
+    };
+  }
+  if (/principal|painel|dashboard/i.test(normalized)) {
+    return {
+      action: 'NAVIGATE',
+      data: { target: 'dashboard' },
+      speechResponse: 'Indo para o painel principal.'
+    };
+  }
+
+  // 2. EXTRAÇÃO DE VALOR E CONTEXTO FINANCEIRO (Lançamentos de Gastos / Ganhos)
+  const valueRegex = /(?:r\$|reais|valor|de|gastei)?\s*(\d+(?:[\.,]\d{1,2})?)/i;
+  const isExpense = /gasto|despesa|gastei|paguei|sa[íi]da/i.test(normalized);
+  const isIncome = /ganho|receita|recebi|ganhei|sal[áa]rio|entrada/i.test(normalized);
+
+  if (isExpense || isIncome) {
+    const valueMatch = normalized.match(valueRegex);
+    if (valueMatch) {
+      const amountStr = valueMatch[1].replace(',', '.');
+      const amount = parseFloat(amountStr);
+
+      if (!isNaN(amount) && amount > 0) {
+        // Extrai descrição limpando palavras-chave
+        let description = normalized
+          .replace(valueMatch[0], '')
+          .replace(/lan[cç]ar|adicionar|criar|gasto|despesa|gastei|paguei|recebi|ganhei|receita|ganho|entrada|de|com|para|reais/gi, '')
+          .trim();
+        
+        description = description.charAt(0).toUpperCase() + description.slice(1);
+
+        // Adivinha categoria baseada em palavras-chave simples
+        let categoryName = isExpense ? 'Lazer' : 'Salário';
+        if (/comida|almo[cç]o|janta|mercado|restaurante|padaria/i.test(normalized)) categoryName = 'Alimentação';
+        else if (/combust[ií]vel|gasolina|carro|uber|t[aá]xi/i.test(normalized)) categoryName = 'Combustível';
+        else if (/aluguel|luz|agua|[aá]gua|internet|casa|moradia/i.test(normalized)) categoryName = 'Moradia';
+
+        const matchedCat = categories.find(c => c.name.toLowerCase().includes(categoryName.toLowerCase()));
+
+        return {
+          action: 'CREATE_TRANSACTION',
+          data: {
+            description: description || (isExpense ? 'Gasto de Voz' : 'Receita de Voz'),
+            amount: isExpense ? -amount : amount,
+            category: matchedCat ? matchedCat.name : (categories[0]?.name || ''),
+            date_at: new Date().toISOString().split('T')[0]
+          },
+          speechResponse: `Entendi. Lançando ${isExpense ? 'gasto' : 'ganho'} de ${amount} reais para ${description || 'Voz'}. Confirme o lançamento.`
+        };
+      }
+    }
+  }
+
+  // 3. ANOTAÇÕES / DIÁRIO
+  if (/anotar|criar nota|escrever nota/i.test(normalized)) {
+    const noteContent = normalized.replace(/anotar|criar nota|escrever nota/gi, '').trim();
+    if (noteContent) {
+      return {
+        action: 'CREATE_NOTE',
+        data: {
+          description: 'Anotação de Voz',
+          content: noteContent.charAt(0).toUpperCase() + noteContent.slice(1)
+        },
+        speechResponse: `Anotação processada: "${noteContent}". Deseja salvar?`
+      };
+    }
+  }
+
+  // 4. METAS FINANCEIRAS
+  if (/meta/i.test(normalized) && /reais/i.test(normalized)) {
+    const valueMatch = normalized.match(valueRegex);
+    if (valueMatch) {
+      const targetAmount = parseFloat(valueMatch[1].replace(',', '.'));
+      if (!isNaN(targetAmount) && targetAmount > 0) {
+        let title = normalized
+          .replace(valueMatch[0], '')
+          .replace(/criar|meta|de|para|reais/gi, '')
+          .trim();
+        title = title.charAt(0).toUpperCase() + title.slice(1);
+
+        return {
+          action: 'CREATE_GOAL',
+          data: {
+            title: title || 'Meta de Voz',
+            target_amount: targetAmount
+          },
+          speechResponse: `Criando meta de ${targetAmount} reais para ${title || 'Voz'}. Confirme para salvar.`
+        };
+      }
+    }
+  }
+
+  return null;
 }

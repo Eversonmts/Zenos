@@ -1102,6 +1102,7 @@ export default function App() {
           onAddShoppingItem={handleAddShoppingItem}
           onPayCompromisso={handlePayCompromisso}
           showToast={showToast}
+          onNavigate={setView}
         />
       )}
 
