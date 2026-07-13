@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Category, Profile, Subcategory, Settings as SettingsType, Plan } from '../types';
-import { Settings as SettingsIcon, Plus, Trash2, Edit2, Check, X, Tag, Moon, Sun, Share2, CreditCard, Crown, Loader2, Clock, Database, Shield, Lock, Fingerprint, Cpu, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles, ChevronDown, ChevronUp, KeyRound } from 'lucide-react';
-import { formatDisplayDate, validateEmail, validateCPF } from '../lib/utils';
+import { Settings as SettingsIcon, Plus, Trash2, Edit2, Check, X, Tag, Moon, Sun, Share2, CreditCard, Crown, Loader2, Clock, Database, Shield, Lock, Fingerprint, Cpu, RefreshCw, AlertCircle, ArrowUpCircle, Sparkles, ChevronDown, ChevronUp, KeyRound, Download } from 'lucide-react';
+import { formatDisplayDate } from '../lib/utils';
 import { db } from '../services/db';
 import { testSupabaseConnection } from '../services/supabase';
 import { CURRENT_VERSION, checkLatestVersion, applyAndReloadUpdate, publishNewVersion } from '../services/versionService';
+import { isIOSDevice, isRunningStandalone, subscribeInstallAvailability, triggerInstallPrompt } from '../services/pwaInstall';
 
 interface SettingsProps {
   categories: Category[];
@@ -56,10 +57,6 @@ export default function Settings({
     full_name: profile.full_name || '',
     email: profile.email || '',
     phone: profile.phone || '',
-    cpf: (profile as any).cpf || '',
-    income: (profile as any).income || 0,
-    profession: (profile as any).profession || '',
-    password: (profile as any).password || '',
   });
   const [showPassword, setShowPassword] = useState(false);
 
@@ -203,10 +200,30 @@ export default function Settings({
   };
 
   const shareApp = () => {
-      const url = window.location.href;
+      const url = window.location.origin;
       const text = `Gerencie suas finanças com o ZenOS Finance! Instale agora: ${url}`;
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
       window.open(whatsappUrl, '_blank');
+  };
+
+  const [canInstallApp, setCanInstallApp] = useState(false);
+  const [isIOS] = useState(isIOSDevice());
+  const [alreadyInstalled] = useState(isRunningStandalone());
+
+  useEffect(() => {
+    const unsubscribe = subscribeInstallAvailability(setCanInstallApp);
+    return unsubscribe;
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (isIOS) {
+      alert('Para instalar: toque no ícone de Compartilhar no Safari e depois em "Adicionar à Tela de Início".');
+      return;
+    }
+    const outcome = await triggerInstallPrompt();
+    if (outcome === 'unavailable') {
+      alert('Seu navegador já processou essa opção ou não suporta instalação direta. Tente pelo menu do navegador ("Instalar app" ou "Adicionar à tela inicial").');
+    }
   };
 
   const [tempMenuSize, setTempMenuSize] = useState<Profile['menu_size']>(profile.menu_size || 'md');
@@ -245,19 +262,6 @@ export default function Settings({
   };
 
   const handleSaveProfile = () => {
-    if (!profileData.full_name || !profileData.full_name.trim()) {
-      showToast('Nome completo é obrigatório!', 'error');
-      return;
-    }
-    if (profileData.email && !validateEmail(profileData.email)) {
-      showToast('Por favor, informe um e-mail válido!', 'error');
-      return;
-    }
-    if (profileData.cpf && !validateCPF(profileData.cpf)) {
-      showToast('Por favor, informe um CPF válido!', 'error');
-      return;
-    }
-
     onUpdateProfile({
       ...profile,
       ...profileData
@@ -530,7 +534,33 @@ export default function Settings({
                   </div>
                 )}
 
-
+                {/* Chave de API do Gemini (usada pelo Consultor IA) */}
+                <div className="p-6 bg-slate-50 dark:bg-[#0a0c14] rounded-3xl border border-slate-200 dark:border-white/5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl">
+                      <KeyRound className="w-5 h-5 text-indigo-500" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">Chave da API Gemini</p>
+                      <p className="text-[10px] text-slate-500">Usada pelo Consultor IA. Gere a sua em aistudio.google.com/apikey</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      placeholder="AIzaSy..."
+                      className="flex-1 px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
+                      value={geminiKeyInput}
+                      onChange={e => { setGeminiKeyInput(e.target.value); setGeminiKeySaved(false); }}
+                    />
+                    <button
+                      onClick={handleSaveGeminiKey}
+                      className="px-5 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-500 transition-all shrink-0"
+                    >
+                      {geminiKeySaved ? <Check className="w-4 h-4" /> : 'Salvar'}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -737,6 +767,27 @@ export default function Settings({
                       ))}
                     </div>
                  </div>
+
+                 {!alreadyInstalled && (
+                   <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-200 dark:border-white/5 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                         <div className="p-3 bg-indigo-500/10 rounded-2xl">
+                            <Download className="w-6 h-6 text-indigo-500" />
+                         </div>
+                         <div>
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Instalar Aplicativo</h3>
+                            <p className="text-xs text-slate-600 dark:text-slate-400">{isIOS ? 'Adicionar à Tela de Início do iPhone' : 'Baixar e instalar no seu celular'}</p>
+                         </div>
+                      </div>
+                      
+                      <button 
+                        onClick={handleInstallApp}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold uppercase text-xs tracking-widest hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20"
+                      >
+                        Baixar
+                      </button>
+                   </div>
+                 )}
 
                  <div className="bg-slate-50 dark:bg-slate-900/50 p-6 rounded-3xl border border-slate-200 dark:border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-4">

@@ -12,6 +12,11 @@ import Compromissos from './components/Compromissos';
 import Potes from './components/Potes';
 import Goals from './components/Goals';
 import InstallPrompt from './components/InstallPrompt';
+import { initPwaInstallListener } from './services/pwaInstall';
+
+// Registered at module load (not inside a component) so we never miss the
+// browser's one-shot beforeinstallprompt event, which can fire very early.
+initPwaInstallListener();
 import Settings from './components/Settings';
 import AdminDashboard from './components/admin/AdminDashboard';
 import LoginModal from './components/LoginModal';

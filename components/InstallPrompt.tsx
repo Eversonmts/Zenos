@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Download, X, Share } from 'lucide-react';
+import { isIOSDevice, isRunningStandalone, subscribeInstallAvailability, triggerInstallPrompt } from '../services/pwaInstall';
 
 const DISMISS_KEY = 'zen_install_prompt_dismissed_at';
 const SNOOZE_DAYS = 7;
-
-// Detects if the app is already running installed on the device (Android
-// "standalone" display-mode, or iOS's navigator.standalone flag). If so,
-// there's nothing to prompt - the user is already using the installed app.
-const isRunningStandalone = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  (window.navigator as any).standalone === true;
 
 const wasRecentlyDismissed = () => {
   const raw = localStorage.getItem(DISMISS_KEY);
@@ -21,43 +15,27 @@ const wasRecentlyDismissed = () => {
 };
 
 export default function InstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [visible, setVisible] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
     if (isRunningStandalone() || wasRecentlyDismissed()) return;
 
-    const ua = window.navigator.userAgent;
-    const iOSDevice = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+    const iOSDevice = isIOSDevice();
     setIsIOS(iOSDevice);
 
-    // Android/Chrome: the browser fires this event when the app is
-    // installable. We intercept it so we can show our own banner instead of
-    // the generic browser mini-infobar, and trigger it later on demand.
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      setVisible(true);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // iOS Safari never fires beforeinstallprompt - there's no programmatic
-    // install API there, so we just show instructions after a short delay.
+    // iOS Safari never fires beforeinstallprompt - show instructions after a short delay.
     let iosTimer: ReturnType<typeof setTimeout> | null = null;
     if (iOSDevice) {
       iosTimer = setTimeout(() => setVisible(true), 2500);
     }
 
-    const handleInstalled = () => {
-      setVisible(false);
-      setDeferredPrompt(null);
-    };
-    window.addEventListener('appinstalled', handleInstalled);
+    const unsubscribe = subscribeInstallAvailability((canInstall) => {
+      if (canInstall) setVisible(true);
+    });
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleInstalled);
+      unsubscribe();
       if (iosTimer) clearTimeout(iosTimer);
     };
   }, []);
@@ -68,11 +46,8 @@ export default function InstallPrompt() {
   };
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
-    setVisible(false);
+    const outcome = await triggerInstallPrompt();
+    if (outcome !== 'unavailable') setVisible(false);
   };
 
   if (!visible) return null;
