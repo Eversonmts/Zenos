@@ -56,6 +56,24 @@ export default function Dashboard({
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 0) {
+      setSelectedMonth(11);
+      setSelectedYear(prev => prev - 1);
+    } else {
+      setSelectedMonth(prev => prev - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 11) {
+      setSelectedMonth(0);
+      setSelectedYear(prev => prev + 1);
+    } else {
+      setSelectedMonth(prev => prev + 1);
+    }
+  };
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [showLayoutModal, setShowLayoutModal] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
@@ -220,15 +238,85 @@ export default function Dashboard({
                 </div>
               </button>
 
-              <button 
-                onClick={() => setShowDatePicker(true)}
-                className="flex items-center gap-1 group"
-              >
-                <span className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                  {months[selectedMonth]}
-                </span>
-                <ChevronDown className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-              </button>
+              {/* Month navigation controls with ChevronLeft, ChevronRight and a localized Popover */}
+              <div className="flex items-center gap-2.5 relative">
+                <button 
+                  type="button"
+                  onClick={handlePrevMonth}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-all text-slate-400 hover:text-indigo-500 active:scale-90"
+                  title="Mês Anterior"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => setShowDatePicker(!showDatePicker)}
+                    className="flex items-center gap-1.5 group py-1.5 px-3 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-2xl transition-all"
+                  >
+                    <span className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                      {months[selectedMonth]}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-all group-hover:translate-y-0.5" />
+                  </button>
+
+                  {showDatePicker && (
+                    <>
+                      {/* Transparent overlay detector to close popover when clicking anywhere else */}
+                      <div 
+                        className="fixed inset-0 z-[120]" 
+                        onClick={() => setShowDatePicker(false)}
+                      />
+                      
+                      {/* Local Popover Container */}
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-3 z-[125] w-64 bg-white dark:bg-[#0f111a] border border-slate-200 dark:border-white/10 rounded-[2rem] shadow-2xl p-5 animate-in fade-in slide-in-from-top-2 duration-200 text-slate-800 dark:text-white">
+                        <div className="flex items-center justify-between mb-4">
+                          <button 
+                            type="button"
+                            onClick={() => setSelectedYear(prev => prev - 1)} 
+                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                          >
+                            <ChevronLeft className="w-4 h-4 text-slate-650 dark:text-slate-400" />
+                          </button>
+                          <span className="font-black text-sm tracking-tight">{selectedYear}</span>
+                          <button 
+                            type="button"
+                            onClick={() => setSelectedYear(prev => prev + 1)} 
+                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                          >
+                            <ChevronRight className="w-4 h-4 text-slate-650 dark:text-slate-400" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {months.map((m, idx) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => {
+                                setSelectedMonth(idx);
+                                setShowDatePicker(false);
+                              }}
+                              className={`text-[9px] font-black uppercase py-2.5 rounded-xl transition-all ${selectedMonth === idx ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/10' : 'hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-600'}`}
+                            >
+                              {m.substring(0, 3)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={handleNextMonth}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-all text-slate-400 hover:text-indigo-500 active:scale-90"
+                  title="Próximo Mês"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
 
               <button 
                 onClick={onOpenAIScanner}
@@ -793,42 +881,7 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* Date Picker Modal */}
-      {showDatePicker && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-[2.5rem] shadow-2xl p-6 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-6">
-              <button onClick={() => setSelectedYear(prev => prev - 1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                <ChevronLeft className="w-5 h-5 text-slate-600" />
-              </button>
-              <span className="font-black text-lg tracking-tight">{selectedYear}</span>
-              <button onClick={() => setSelectedYear(prev => prev + 1)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                <ChevronRight className="w-5 h-5 text-slate-600" />
-              </button>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {months.map((m, idx) => (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setSelectedMonth(idx);
-                    setShowDatePicker(false);
-                  }}
-                  className={`text-[10px] font-black uppercase py-3 rounded-2xl transition-all ${selectedMonth === idx ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600'}`}
-                >
-                  {m.substring(0, 3)}
-                </button>
-              ))}
-            </div>
-            <button 
-              onClick={() => setShowDatePicker(false)}
-              className="w-full mt-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-            >
-              Fechar
-            </button>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
