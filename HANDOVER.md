@@ -72,12 +72,25 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Criamos no [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx) uma escuta para o evento `beforeinstallprompt` do navegador.
   * Quando o navegador sinaliza que o aplicativo pode ser instalado, exibimos um **banner premium flutuante** na interface do usuário com a logo oficial, título de instalação e botão "Instalar".
   * O clique em "Instalar" invoca o prompt nativo de instalação do navegador, baixando e instalando o ZenOS de fato no sistema do celular ou computador do usuário.
+  * **Banner de Instalação Nativa (In-App)**:
+  * Criamos no [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx) uma escuta para o evento `beforeinstallprompt` do navegador.
+  * Quando o navegador sinaliza que o aplicativo pode ser instalado, exibimos um **banner premium flutuante** na interface do usuário com a logo oficial, título de instalação e botão "Instalar".
+  * O clique em "Instalar" invoca o prompt nativo de instalação do navegador, baixando e instalando o ZenOS de fato no sistema do celular ou computador do usuário.
   * Adicionamos controle de descarte: se o usuário clicar em fechar (`X`), o banner é recolhido e a ação é memorizada no `sessionStorage` para não incomodar sua navegação durante a sessão ativa.
+
+### 9. Prompt de Instalação Automática Pós-Login & Captura de Navegação (Deep Linking)
+* **Pergunta Automática Pós-Login**: 
+  * Criamos um **Modal Popup Central Premium** no [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx) que é acionado de imediato quando detecta que o usuário está logado no navegador Chrome/Safari e o PWA é instalável.
+  * Se o usuário ainda não instalou o aplicativo, o popup central pergunta: *"Deseja instalar o ZenOS no seu telefone para ter acesso instantâneo pela tela inicial, modo offline e melhor velocidade?"*
+  * Um clique em *"Instalar Agora"* ativa o instalador nativo do sistema operacional. O clique em *"Mais Tarde"* silencia a pergunta no `localStorage` sob a chave `zenos_install_prompt_asked_v1`.
+* **Abertura Automática do App Instalado (Launch Handler)**:
+  * Atualizamos o [manifest.json](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/manifest.json) para incluir as chaves `"launch_handler"` (configurado para `client_mode: "navigate-existing"`) e `"prefer_related_applications": true`.
+  * Isso diz ao sistema operacional do smartphone/PC que, caso o usuário já tenha o aplicativo instalado, ao clicar em links ou abrir o endereço do ZenOS em navegadores tradicionais, o sistema deve interceptar a navegação e abrir o aplicativo nativamente na janela PWA instalada, redirecionando o fluxo instantaneamente.
 
 ---
 
 ## 🧪 Status de Builds e Testes
-* **Compilação TypeScript**: Rodando `npx tsc --noEmit` de forma recorrente com 100% de sucesso e sem quebra de tipos.
+* **Compilação TypeScript**: Rodando `npx tsc --noEmit` de forma recurrentemente com 100% de sucesso e sem quebra de tipos.
 * **Servidor Dev Local**: Rodando na porta 3000 (`http://localhost:3000/`) como tarefa de background para visualização local imediata.
 * **Status Git**: Repositório remoto no GitHub sincronizado na branch `main`.
 
