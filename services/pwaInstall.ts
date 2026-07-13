@@ -13,14 +13,24 @@ export const initPwaInstallListener = () => {
   window.addEventListener('beforeinstallprompt', (e: Event) => {
     e.preventDefault();
     deferredPrompt = e;
+    // The browser only fires this when it currently considers the app NOT
+    // installed - so if we see it, any stale "installed before" flag from a
+    // previous install (that was later uninstalled) is now wrong. Clear it.
+    localStorage.removeItem('zen_app_installed');
     notify();
   });
   window.addEventListener('appinstalled', () => {
     installed = true;
     deferredPrompt = null;
+    localStorage.setItem('zen_app_installed', 'true');
     notify();
   });
 };
+
+// Best-effort memory of a past successful install, since the browser gives
+// no reliable way to ask "is this already installed?" once we're viewing
+// the site in a normal tab instead of the installed shortcut.
+export const wasEverInstalled = () => localStorage.getItem('zen_app_installed') === 'true';
 
 export const isIOSDevice = () =>
   /iPad|iPhone|iPod/.test(window.navigator.userAgent) && !(window as any).MSStream;

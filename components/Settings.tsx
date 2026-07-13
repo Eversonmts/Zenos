@@ -6,7 +6,7 @@ import { formatDisplayDate } from '../lib/utils';
 import { db } from '../services/db';
 import { testSupabaseConnection } from '../services/supabase';
 import { CURRENT_VERSION, checkLatestVersion, applyAndReloadUpdate, publishNewVersion } from '../services/versionService';
-import { isIOSDevice, isRunningStandalone, subscribeInstallAvailability, triggerInstallPrompt } from '../services/pwaInstall';
+import { isIOSDevice, isRunningStandalone, subscribeInstallAvailability, triggerInstallPrompt, wasEverInstalled } from '../services/pwaInstall';
 
 interface SettingsProps {
   categories: Category[];
@@ -208,10 +208,13 @@ export default function Settings({
 
   const [canInstallApp, setCanInstallApp] = useState(false);
   const [isIOS] = useState(isIOSDevice());
-  const [alreadyInstalled] = useState(isRunningStandalone());
+  const [alreadyInstalled, setAlreadyInstalled] = useState(isRunningStandalone() || wasEverInstalled());
 
   useEffect(() => {
-    const unsubscribe = subscribeInstallAvailability(setCanInstallApp);
+    const unsubscribe = subscribeInstallAvailability((canInstall) => {
+      setCanInstallApp(canInstall);
+      if (canInstall) setAlreadyInstalled(false);
+    });
     return unsubscribe;
   }, []);
 
@@ -222,7 +225,11 @@ export default function Settings({
     }
     const outcome = await triggerInstallPrompt();
     if (outcome === 'unavailable') {
-      alert('Seu navegador já processou essa opção ou não suporta instalação direta. Tente pelo menu do navegador ("Instalar app" ou "Adicionar à tela inicial").');
+      if (wasEverInstalled()) {
+        alert('Você já instalou o Zenos neste celular antes! Procure o ícone na tela inicial - não precisa instalar de novo.\n\nSe apagou o app, remova qualquer atalho antigo e tente pelo menu do navegador (⋮ → "Adicionar à tela inicial" ou "Instalar app").');
+      } else {
+        alert('Seu navegador ainda não liberou a instalação direta. Tente pelo menu do navegador (⋮) e procure "Instalar app" ou "Adicionar à tela inicial". Se estiver abrindo pelo WhatsApp/Instagram, abra o link direto no Chrome primeiro.');
+      }
     }
   };
 
