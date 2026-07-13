@@ -87,6 +87,16 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Atualizamos o [manifest.json](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/manifest.json) para incluir as chaves `"launch_handler"` (configurado para `client_mode: "navigate-existing"`) e `"prefer_related_applications": true`.
   * Isso diz ao sistema operacional do smartphone/PC que, caso o usuário já tenha o aplicativo instalado, ao clicar em links ou abrir o endereço do ZenOS em navegadores tradicionais, o sistema deve interceptar a navegação e abrir o aplicativo nativamente na janela PWA instalada, redirecionando o fluxo instantaneamente.
 
+### 10. Correção de Exibição de Saldos dos Potes e Histórico de Metas
+* **Exibição do Saldo do Pote**:
+  * No detalhamento de cada Pote do [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx), a propriedade `account.balance` estava sendo lida como `undefined` devido à ausência no mapeamento. 
+  * Corrigimos o mapeamento para atribuir `balance: account.current_balance` (calculado dinamicamente no `App.tsx` pela diferença entre as receitas/aportes e despesas reais de cada pote). Com isso, o saldo acumulado de cada pote passa a refletir instantaneamente a verdade financeira.
+  * O saldo disponível do cabeçalho soma perfeitamente os saldos reativos dos potes de forma agregada.
+* **Histórico Sincronizado em Metas**:
+  * Atualizamos a interface `GoalsProps` e a chamada de depósito no [Goals.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Goals.tsx) para suportar a listagem de transações reais.
+  * A caixa de detalhes de metas que antes exibia a mensagem estática *"Aguardando implementação..."* agora lista dinamicamente todas as contribuições financeiras reais vinculadas àquela meta (filtradas por `goal_id`), com a data e valor corretos de cada aporte.
+  * Sanamos incompatibilidades de propriedades e chaves no [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx) e [types.ts](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/types.ts).
+
 ---
 
 ## 🧪 Status de Builds e Testes
