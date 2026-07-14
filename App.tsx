@@ -467,8 +467,8 @@ export default function App() {
       };
     });
 
-    // O saldo global disponível representa a soma do dinheiro real disponível nas contas físicas
-    const total = processedAccs.reduce((sum, a) => sum + a.current_balance, 0);
+    // O saldo global disponível representa a soma dos saldos de todos os potes virtuais
+    const total = processedPts.reduce((sum, a) => sum + a.current_balance, 0);
 
     return { 
       processedAccounts: processedAccs,

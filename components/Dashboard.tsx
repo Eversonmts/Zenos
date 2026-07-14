@@ -158,8 +158,8 @@ export default function Dashboard({
   }, [filteredTransactions, pots, monthIncome]);
 
   const dashboardTotalBalance = useMemo(() => {
-    return accounts.reduce((acc, p) => acc + p.current_balance, 0);
-  }, [accounts]);
+    return pots.reduce((acc, p) => acc + p.current_balance, 0);
+  }, [pots]);
   
   // Cálculo de Compromissos do Mês
   const debtSummary = useMemo(() => {

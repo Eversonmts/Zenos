@@ -65,8 +65,8 @@ export default function Potes({
   const periodBalances = useMemo(() => {
     if (!dateRange.start && !dateRange.end) return null;
 
-    let totalIncome = 0;
     const expenseByAccount: Record<string, number> = {};
+    const incomeByAccount: Record<string, number> = {};
 
     transactions.forEach(t => {
       const txDate = t.date_at;
@@ -74,22 +74,42 @@ export default function Potes({
       const beforeEnd = !dateRange.end || txDate <= dateRange.end;
 
       if (afterStart && beforeEnd) {
-        if (t.type === 'income') {
-          totalIncome += t.amount;
-        } else if (t.type === 'expense' && t.account_id) {
-          expenseByAccount[t.account_id] = (expenseByAccount[t.account_id] || 0) + t.amount;
+        if (t.type === 'expense' && (t.pot_id || t.account_id)) {
+          const key = t.pot_id || t.account_id;
+          if (key) expenseByAccount[key] = (expenseByAccount[key] || 0) + Number(t.amount);
+        }
+        if (t.type === 'income' && t.pot_id) {
+          incomeByAccount[t.pot_id] = (incomeByAccount[t.pot_id] || 0) + Number(t.amount);
         }
       }
     });
 
-    return accounts.reduce((acc, account) => {
-      const allocatedIncome = totalIncome * ((account.percentage || 0) / 100);
-      const expenses = expenseByAccount[account.id] || 0;
-      acc[account.id] = allocatedIncome - expenses;
+    // Alocações no período filtrado
+    const filteredTxIds = new Set(
+      transactions
+        .filter(t => t.type === 'income')
+        .filter(t => {
+          const txDate = t.date_at;
+          const afterStart = !dateRange.start || txDate >= dateRange.start;
+          const beforeEnd = !dateRange.end || txDate <= dateRange.end;
+          return afterStart && beforeEnd;
+        })
+        .map(t => t.id)
+    );
+
+    allocations.forEach(alloc => {
+      if (filteredTxIds.has(alloc.transaction_id)) {
+        incomeByAccount[alloc.account_id] = (incomeByAccount[alloc.account_id] || 0) + Number(alloc.amount);
+      }
+    });
+
+    return accounts.reduce((acc, pot) => {
+      const entries = incomeByAccount[pot.id] || 0;
+      const exits = expenseByAccount[pot.id] || 0;
+      acc[pot.id] = entries - exits;
       return acc;
     }, {} as Record<string, number>);
-
-  }, [transactions, accounts, dateRange]);
+  }, [transactions, accounts, allocations, dateRange]);
 
   // Histórico de movimentações do pote selecionado: junta o rateio de receitas
   // (via transaction_allocations) com despesas lançadas direto nesse pote.
@@ -113,7 +133,7 @@ export default function Potes({
       });
 
     const fromDirect = transactions
-      .filter(t => t.account_id === detailAccount.id)
+      .filter(t => t.pot_id === detailAccount.id || t.account_id === detailAccount.id)
       .map(t => ({
         id: t.id,
         date: t.date_at,
@@ -228,14 +248,25 @@ export default function Potes({
       {/* Resumo da Estrutura */}
       <div className="bg-white dark:bg-[#0a0c14] p-8 rounded-[2.5rem] border border-slate-200 dark:border-white/5 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 shadow-2xl dark:shadow-none">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-5 w-full xl:w-auto">
-           <div className="flex items-center gap-5">
-             <div className="p-4 bg-indigo-600/10 rounded-2xl border border-indigo-600/20">
-                <Settings className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+           <div className="flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-10">
+             <div className="flex items-center gap-5">
+               <div className="p-4 bg-indigo-600/10 rounded-2xl border border-indigo-600/20">
+                  <Settings className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+               </div>
+               <div>
+                  <h2 className="text-xl font-black text-[#212529] dark:text-white uppercase tracking-tighter">Arquitetura de Rateio</h2>
+                  <p className="text-[#4e545a] dark:text-slate-600 text-[11px] font-bold uppercase tracking-[0.2em] mt-1">
+                    Alocação: <span className={`px-2 py-0.5 rounded-lg ${totalPercentage > 100 ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'}`}>{totalPercentage}% / 100%</span>
+                  </p>
+               </div>
              </div>
-             <div>
-                <h2 className="text-xl font-black text-[#212529] dark:text-white uppercase tracking-tighter">Arquitetura de Rateio</h2>
-                <p className="text-[#4e545a] dark:text-slate-600 text-[11px] font-bold uppercase tracking-[0.2em] mt-1">
-                  Alocação: <span className={`px-2 py-0.5 rounded-lg ${totalPercentage > 100 ? 'bg-rose-500/20 text-rose-600 dark:text-rose-400' : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'}`}>{totalPercentage}% / 100%</span>
+
+             <div className="sm:pl-10 sm:border-l border-slate-200 dark:border-slate-800">
+                <h2 className="text-xl font-black text-emerald-500 tracking-tighter">
+                  R$ {formatCurrency(accounts.reduce((sum, acc) => sum + Number(acc.current_balance || 0), 0))}
+                </h2>
+                <p className="text-[#4e545a] dark:text-slate-600 text-[9px] font-black uppercase tracking-[0.2em] mt-1">
+                  Saldo nos Potes
                 </p>
              </div>
            </div>
