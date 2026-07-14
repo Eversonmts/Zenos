@@ -42,7 +42,7 @@ export default function Dashboard({
   monthExpenses: propMonthExpenses,
   onOpenAIScanner
 }: DashboardProps) {
-  const { transactions, accounts, debts, goals, tasks, notes, journal, budgets } = data;
+  const { transactions, accounts, pots = [], debts, goals, tasks, notes, journal, budgets } = data;
   
   // Use props if available, otherwise calculate locally
   const currentTotalBalance = propTotalBalance ?? accounts.reduce((acc, a) => acc + Number(a.current_balance), 0);
@@ -134,26 +134,28 @@ export default function Dashboard({
   const monthAccounts = useMemo(() => {
     const expenseByAccount: Record<string, number> = {};
     filteredTransactions.forEach(t => {
-      if (t.type === 'expense' && t.account_id) {
-        expenseByAccount[t.account_id] = (expenseByAccount[t.account_id] || 0) + Number(t.amount);
+      if (t.type === 'expense' && (t.pot_id || t.account_id)) {
+        const key = t.pot_id || t.account_id;
+        if (key) expenseByAccount[key] = (expenseByAccount[key] || 0) + Number(t.amount);
       }
     });
 
-    return accounts.map(account => {
-      const monthAllocatedIncome = monthIncome * (account.percentage / 100);
-      const monthExpenses = expenseByAccount[account.id] || 0;
+    const potsList = pots || [];
+    return potsList.map(pot => {
+      const monthAllocatedIncome = monthIncome * (pot.percentage / 100);
+      const monthExpenses = expenseByAccount[pot.id] || 0;
       return { 
-        ...account, 
+        ...pot, 
         // Use the all-time balance passed from App.tsx as the primary balance
         // current_balance is already calculated correctly in App.tsx
-        displayBalance: account.current_balance,
-        balance: account.current_balance,
+        displayBalance: pot.current_balance,
+        balance: pot.current_balance,
         monthFlow: monthAllocatedIncome - monthExpenses,
         monthIncome: monthAllocatedIncome, 
         monthExpenses: monthExpenses 
       };
     });
-  }, [filteredTransactions, accounts, monthIncome]);
+  }, [filteredTransactions, pots, monthIncome]);
 
   const dashboardTotalBalance = useMemo(() => {
     return accounts.reduce((acc, p) => acc + p.current_balance, 0);

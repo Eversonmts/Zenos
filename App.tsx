@@ -418,7 +418,7 @@ export default function App() {
   const activeUser = simulatedUser || user;
 
   // --- Processed Data (Derived State) ---
-  const { processedAccounts, totalBalance, totalMonthlyIncome, monthExpenses } = useMemo(() => {
+  const { processedAccounts, processedPots, totalBalance, totalMonthlyIncome, monthExpenses } = useMemo(() => {
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
@@ -430,24 +430,35 @@ export default function App() {
       .filter(t => t.type === 'expense' && t.date_at?.startsWith(currentMonthStr))
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    // IMPORTANT: Pot balances are accumulated strictly from actual data already
-    // persisted (income via transaction_allocations/pot_allocations, expenses via transactions
-    // directly tagged to that pot_id). We intentionally do NOT recompute
-    // "all-time income x current percentage" here - that would retroactively
-    // change historical allocations every time a percentage is edited or a new
-    // pot is created. Percentages only affect how *new* income entries split.
-    const processedPots = pots.map(pot => {
+    // Contas bancárias físicas reais (Operacional, Reserva, Nubank, Itaú)
+    const processedAccs = accounts.map(acc => {
+      const incomes = transactions
+        .filter(t => t.type === 'income' && t.account_id === acc.id)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const expenses = transactions
+        .filter(t => t.type === 'expense' && t.account_id === acc.id)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+      return {
+        ...acc,
+        current_balance: Number(acc.balance_initial || 0) + incomes - expenses
+      };
+    });
+
+    // Potes virtuais de rateio (Essencial, Investimento, Lazer)
+    const processedPts = pots.map(pot => {
       const incomes = transactionAllocations
         .filter(a => a.account_id === pot.id)
         .reduce((sum, a) => sum + Number(a.amount), 0);
 
-      // Receita manual, lançada direto num pote específico
+      // Receita manual ou despesa marcada direto nesse pote virtual
       const directIncomes = transactions
-        .filter(t => t.type === 'income' && (t.pot_id === pot.id || t.account_id === pot.id))
+        .filter(t => t.type === 'income' && t.pot_id === pot.id)
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       const expenses = transactions
-        .filter(t => t.type === 'expense' && (t.pot_id === pot.id || t.account_id === pot.id))
+        .filter(t => t.type === 'expense' && t.pot_id === pot.id)
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       return {
@@ -456,23 +467,26 @@ export default function App() {
       };
     });
 
-    const total = processedPots.reduce((sum, a) => sum + a.current_balance, 0);
+    // O saldo global disponível representa a soma do dinheiro real disponível nas contas físicas
+    const total = processedAccs.reduce((sum, a) => sum + a.current_balance, 0);
 
     return { 
-      processedAccounts: processedPots, // Mapeado como processedAccounts para compatibilidade de props do Dashboard e Potes
+      processedAccounts: processedAccs,
+      processedPots: processedPts,
       totalBalance: total, 
       totalMonthlyIncome: monthlyIncome,
       monthExpenses: monthlyExpenses
     };
-  }, [transactions, accounts, transactionAllocations]);
+  }, [transactions, accounts, pots, transactionAllocations]);
 
   const financialData = useMemo(() => ({ 
     profile: activeUser,
     transactions, 
     accounts: processedAccounts, 
+    pots: processedPots,
     debts, goals, categories, subcategories, settings, subscriptions,
     tasks, notes, journal: journalEntries, calendar: events, budgets
-  }), [activeUser, transactions, processedAccounts, debts, goals, categories, subcategories, settings, subscriptions, tasks, notes, journalEntries, events, budgets]);
+  }), [activeUser, transactions, processedAccounts, processedPots, debts, goals, categories, subcategories, settings, subscriptions, tasks, notes, journalEntries, events, budgets]);
 
   const showToast = (message: string, type: ToastType = 'success') => {
     setToast({ message, type });
@@ -1313,6 +1327,7 @@ export default function App() {
                 categories={categories}
                 subcategories={subcategories}
                 accounts={processedAccounts}
+                pots={processedPots}
                 onAdd={handleAddTransaction} 
                 onDelete={(id) => {
                   const removed = transactions.find(t => t.id === id);
@@ -1383,7 +1398,7 @@ export default function App() {
             {view === 'accounts' as any && (
               <Potes 
                 activeUserId={activeUser.id}
-                accounts={processedAccounts} 
+                accounts={processedPots} 
                 transactions={transactions}
                 allocations={transactionAllocations}
                 categories={categories}

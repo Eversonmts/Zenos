@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Plus, Minus, X, Trash2, Edit2, Calendar, SearchX, ChevronLeft, ChevronRight, Filter, CheckCircle2, CreditCard as CreditCardIcon, ArrowDownCircle, Banknote, QrCode, Smartphone, Laptop, FileText, Tag, Subtitles } from 'lucide-react';
-import { Transaction, TransactionType, Account, Category, Goal, Debt, Profile } from '../types';
+import { Transaction, TransactionType, Account, Pot, Category, Goal, Debt, Profile } from '../types';
 import { formatDisplayDate } from '../lib/utils';
 import { Subcategory } from '../types';
 
@@ -21,6 +21,7 @@ interface TransactionsProps {
   activeUserId: string;
   transactions: Transaction[];
   accounts: Account[];
+  pots?: Pot[];
   categories: Category[];
   subcategories: Subcategory[];
   onAdd: (t: Transaction | Transaction[]) => void;
@@ -34,7 +35,7 @@ interface TransactionsProps {
 }
 
 export default function Transactions({ 
-  activeUserId, transactions, accounts, categories, subcategories, onAdd, onDelete, onEdit, onAddCategory, onAddSubcategory, preFilledData, initialTypeFilter = 'all', showToast
+  activeUserId, transactions, accounts, pots = [], categories, subcategories, onAdd, onDelete, onEdit, onAddCategory, onAddSubcategory, preFilledData, initialTypeFilter = 'all', showToast
 }: TransactionsProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | TransactionType>(initialTypeFilter);
@@ -480,12 +481,28 @@ export default function Transactions({
                 </select>
               </div>
 
-              {currentTx.type === 'expense' && (
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Pote de Origem</label>
-                  <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none text-sm" value={currentTx.account_id} onChange={e => setCurrentTx({...currentTx, account_id: e.target.value})}>
-                    <option value="">Selecione um Pote...</option>
-                    {accounts.map(p => <option key={p.id} value={p.id}>{p.name} (R$ {p.current_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>)}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Conta Bancária</label>
+                <select 
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none text-sm" 
+                  value={currentTx.account_id || ''} 
+                  onChange={e => setCurrentTx({...currentTx, account_id: e.target.value || null})}
+                >
+                  <option value="">Selecione a Conta...</option>
+                  {accounts.map(p => <option key={p.id} value={p.id}>{p.name} (R$ {p.current_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>)}
+                </select>
+              </div>
+
+              {currentTx.type === 'expense' && pots && pots.length > 0 && (
+                <div className="space-y-1.5 mt-3">
+                  <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Pote Virtual</label>
+                  <select 
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none text-sm" 
+                    value={currentTx.pot_id || ''} 
+                    onChange={e => setCurrentTx({...currentTx, pot_id: e.target.value || null})}
+                  >
+                    <option value="">Selecione o Pote...</option>
+                    {pots.map(p => <option key={p.id} value={p.id}>{p.name} (R$ {p.current_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>)}
                   </select>
                 </div>
               )}
