@@ -556,7 +556,7 @@ export default function Dashboard({
                           )}
 
                           {filteredTransactions
-                            .filter(t => t.account_id === account.id)
+                            .filter(t => t.pot_id === account.id || t.account_id === account.id)
                             .filter(t => {
                               const catName = data.categories.find(c => c.id === t.category_id)?.name || 'Outros';
                               return (t.description || '').toLowerCase().includes(accountSearch.toLowerCase()) || 

@@ -495,6 +495,60 @@ export const db = {
   ensureDefaultPots: async (userId: string, existingPots: Pot[]): Promise<Pot[]> => {
     if (isTestUser(userId)) return existingPots;
 
+    try {
+      // 1. Verificar se existem contas antigas com porcentagem a serem migradas
+      // que ainda não estejam na tabela de potes
+      const { data: oldAccounts } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('user_id', userId)
+        .gt('percentage', 0);
+
+      if (oldAccounts && oldAccounts.length > 0) {
+        // Busca os IDs dos potes já existentes na tabela pots
+        const { data: currentPots } = await supabase
+          .from('pots')
+          .select('id')
+          .eq('user_id', userId);
+
+        const currentPotsIds = new Set((currentPots || []).map(p => p.id));
+        const potsToMigrate = oldAccounts
+          .filter(acc => !currentPotsIds.has(acc.id))
+          .map(acc => ({
+            id: acc.id,
+            user_id: userId,
+            name: acc.name,
+            percentage: acc.percentage || 0,
+            current_balance: acc.current_balance || 0,
+            created_at: acc.created_at,
+            updated_at: acc.updated_at
+          }));
+
+        if (potsToMigrate.length > 0) {
+          const { data: inserted, error: insertError } = await supabase
+            .from('pots')
+            .upsert(potsToMigrate)
+            .select('*');
+
+          if (!insertError && inserted) {
+            console.log(`Migrated ${inserted.length} pots successfully from accounts.`);
+            
+            // Atualiza a tabela accounts para zerar a porcentagem no banco
+            const zeroedAccounts = oldAccounts.map(acc => ({ ...acc, percentage: 0 }));
+            await supabase.from('accounts').upsert(zeroedAccounts);
+            
+            const mergedPots = [...existingPots.filter(p => !potsToMigrate.some(m => m.id === p.id)), ...(inserted as Pot[])];
+            saveLocalData(userId, { pots: mergedPots });
+            return mergedPots;
+          } else if (insertError) {
+            console.error("Failed to insert migrated pots:", insertError);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Failed to run pots auto-migration check:", e);
+    }
+
     const { count, error: countError } = await supabase
       .from('pots')
       .select('id', { count: 'exact', head: true })
