@@ -139,6 +139,14 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * O widget `"Potes"` no [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) foi adaptado para consumir a variável dedicada `pots` e calcular os fluxos mensais dos potes com base na tabela física correspondente do banco, deixando a aba `"accounts"` livre para calcular o saldo total físico do usuário.
   * O formulário de lançamentos em [Transactions.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Transactions.tsx) foi adaptado para permitir selecionar tanto a **Conta Bancária (Física)** de onde o dinheiro sai (salvando em `account_id`) quanto o **Pote Virtual** correspondente (salvando em `pot_id`), respeitando 100% a integridade relacional.
 
+### 15. Consolidação de Saldos dos Potes (Entradas - Saídas) e Somatório de Potes no Saldo Disponível
+* **Cálculo de Saldos Reais (Potes)**:
+  * Ajustamos o cálculo em [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) e [Potes.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Potes.tsx) para computar de forma precisa as entradas (aportes de rateio obtidos a partir de `transaction_allocations` + receitas diretas no pote) menos as saídas (despesas diretas no pote), garantindo a verdade matemática do saldo real de cada pote no período selecionado.
+  * Ajustamos a listagem de transações no detalhe do pote no [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) e [Potes.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Potes.tsx) para incluir despesas tagged em `t.pot_id` (anteriormente limitados apenas a `t.account_id`).
+* **Soma Consolidada no Saldo Disponível**:
+  * Adicionamos a visualização física do **"Saldo nos Potes"** (que soma os saldos reais de todos os potes) no cabeçalho superior do [Potes.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Potes.tsx).
+  * Ajustamos o `totalBalance` na raiz do [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx) e no [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) para computar a soma exata de todos os potes ativos, refletindo essa soma consolidada no **"Saldo Disponível"** no topo da tela principal.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
