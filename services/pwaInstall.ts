@@ -7,19 +7,25 @@ let deferredPrompt: any = null;
 let installed = false;
 const listeners: Array<(canInstall: boolean) => void> = [];
 
-const notify = () => listeners.forEach(cb => cb(!!deferredPrompt && !installed));
+const notify = () => {
+  const canInstall = !!deferredPrompt && !installed;
+  console.log(`[PWA Install] Notifying listeners. Can install? ${canInstall}`);
+  listeners.forEach(cb => cb(canInstall));
+};
 
 export const initPwaInstallListener = () => {
+  console.log('[PWA Install] Initializing listeners...');
+  
   window.addEventListener('beforeinstallprompt', (e: Event) => {
+    console.log('[PWA Install] beforeinstallprompt event fired and captured!');
     e.preventDefault();
     deferredPrompt = e;
-    // The browser only fires this when it currently considers the app NOT
-    // installed - so if we see it, any stale "installed before" flag from a
-    // previous install (that was later uninstalled) is now wrong. Clear it.
     localStorage.removeItem('zen_app_installed');
     notify();
   });
+
   window.addEventListener('appinstalled', () => {
+    console.log('[PWA Install] App was successfully installed!');
     installed = true;
     deferredPrompt = null;
     localStorage.setItem('zen_app_installed', 'true');
@@ -27,9 +33,7 @@ export const initPwaInstallListener = () => {
   });
 };
 
-// Best-effort memory of a past successful install, since the browser gives
-// no reliable way to ask "is this already installed?" once we're viewing
-// the site in a normal tab instead of the installed shortcut.
+// Best-effort memory of a past successful install
 export const wasEverInstalled = () => localStorage.getItem('zen_app_installed') === 'true';
 
 export const isIOSDevice = () =>
@@ -52,9 +56,14 @@ export const subscribeInstallAvailability = (cb: (canInstall: boolean) => void) 
 
 // Returns 'accepted' | 'dismissed' | 'unavailable'
 export const triggerInstallPrompt = async (): Promise<'accepted' | 'dismissed' | 'unavailable'> => {
-  if (!deferredPrompt) return 'unavailable';
+  if (!deferredPrompt) {
+    console.warn('[PWA Install] triggerInstallPrompt called but no deferredPrompt available.');
+    return 'unavailable';
+  }
+  console.log('[PWA Install] Triggering browser install prompt...');
   deferredPrompt.prompt();
   const choice = await deferredPrompt.userChoice;
+  console.log(`[PWA Install] User choice outcome: ${choice.outcome}`);
   deferredPrompt = null;
   notify();
   return choice.outcome === 'accepted' ? 'accepted' : 'dismissed';

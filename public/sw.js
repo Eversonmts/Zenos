@@ -1,5 +1,5 @@
-// Service Worker básico para instalabilidade do PWA ZenOS
-const CACHE_NAME = 'zenos-cache-v1';
+// ZenOS PWA Service Worker
+const CACHE_NAME = 'zenos-pwa-cache-v1';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -9,8 +9,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// O listener de 'fetch' é obrigatório para o Chrome no Windows considerar o PWA instalável.
+// Respondemos diretamente com a rede para evitar travamento de arquivos em cache.
 self.addEventListener('fetch', (event) => {
-  // Apenas atende ao requisito de interceptação para PWA instalável
   event.respondWith(
     fetch(event.request).catch(() => {
       return caches.match(event.request);
