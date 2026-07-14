@@ -188,6 +188,11 @@ export default function App() {
     }
   }, [simulatedUser?.menu_size, user?.menu_size]);
 
+  // Função para marcar mutações locais recentes e evitar recarga redundante do CDC
+  const registerLocalMutation = () => {
+    (window as any).zenos_last_local_mutation = Date.now();
+  };
+
   // Multi-device realtime sync: whenever ANY table changes on ANY device for
   // this user (Supabase Realtime/Postgres CDC), reload data here almost
   // instantly instead of waiting for the next manual refresh/app reopen.
@@ -197,6 +202,12 @@ export default function App() {
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const handleRemoteChange = () => {
+      // Ignora recarga redundante se a mudança foi disparada por este próprio cliente há menos de 3.5 segundos
+      const lastMutation = (window as any).zenos_last_local_mutation || 0;
+      if (Date.now() - lastMutation < 3500) {
+        return;
+      }
+
       if (debounceTimer) clearTimeout(debounceTimer);
       // Small debounce: a single user action can touch multiple tables
       // (e.g. a transaction + its account balance) - wait for the burst
@@ -508,6 +519,7 @@ export default function App() {
       saver: (uid: string, data: any) => Promise<void>
   ) => {
       if(!activeUser) return;
+      registerLocalMutation();
       setter((prev: any) => {
           const newData = typeof updateFn === 'function' ? updateFn(prev) : updateFn;
           saver(activeUser.id, newData).catch(err => {
@@ -605,6 +617,7 @@ export default function App() {
   
   const handleAddTransaction = async (t: Transaction | Transaction[]) => {
     if(!activeUser) return;
+    registerLocalMutation();
 
     let newEntries: Transaction[];
     let newAllocations: TransactionAllocation[] = [];
