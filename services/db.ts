@@ -506,8 +506,31 @@ export const db = {
     const toUpsert = onlyNewOrUpdated 
       ? (Array.isArray(onlyNewOrUpdated) ? onlyNewOrUpdated : [onlyNewOrUpdated]) 
       : txs;
-    const { error } = await supabase.from('transactions').upsert(toUpsert.map(t => ({ ...t, user_id: userId })));
-    if (error) { console.error("Failed to save transactions:", error); throw error; }
+
+    // Sanitização estrita: envia apenas as colunas reais da tabela transactions no Supabase
+    // para evitar que colunas extras do frontend (ex: subcategory_id, goal_id, item, location)
+    // façam a requisição falhar inteira.
+    const cleanTxs = toUpsert.map(t => ({
+      id: t.id,
+      user_id: userId,
+      account_id: t.account_id,
+      category_id: t.category_id,
+      type: t.type,
+      description: t.description || '',
+      amount: Number(t.amount || 0),
+      date_at: t.date_at,
+      payment_method: t.payment_method,
+      is_recurring: !!t.is_recurring,
+      note: t.note || null,
+      created_at: t.created_at || new Date().toISOString(),
+      updated_at: t.updated_at || new Date().toISOString()
+    }));
+
+    const { error } = await supabase.from('transactions').upsert(cleanTxs);
+    if (error) { 
+      console.error("Failed to save transactions to Supabase:", error); 
+      throw error; 
+    }
   },
 
   saveAccounts: async (userId: string, accounts: Account[]) => {
