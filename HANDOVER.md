@@ -132,6 +132,13 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
 * **Servidor Dev Local**: Rodando na porta 3000 (`http://localhost:3000/`) como tarefa de background para visualização local imediata.
 * **Status Git**: Repositório remoto no GitHub sincronizado na branch `main`.
 
+### 14. Separação de Contas Físicas vs Potes Virtuais no Frontend
+* **O Problema**: A modelagem de banco de dados anterior misturava contas físicas e potes virtuais no mesmo conceito (`accounts`). Na migração v1.0, o frontend precisava lidar de forma isolada com Contas Bancárias Reais (onde reside o saldo real do usuário) e Potes Virtuais (porcentagens de rateio virtual).
+* **A Solução**:
+  * Passamos tanto `processedAccounts` (Contas Físicas) quanto `processedPots` (Potes Virtuais) de forma independente no objeto `financialData` do [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx).
+  * O widget `"Potes"` no [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) foi adaptado para consumir a variável dedicada `pots` e calcular os fluxos mensais dos potes com base na tabela física correspondente do banco, deixando a aba `"accounts"` livre para calcular o saldo total físico do usuário.
+  * O formulário de lançamentos em [Transactions.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Transactions.tsx) foi adaptado para permitir selecionar tanto a **Conta Bancária (Física)** de onde o dinheiro sai (salvando em `account_id`) quanto o **Pote Virtual** correspondente (salvando em `pot_id`), respeitando 100% a integridade relacional.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
