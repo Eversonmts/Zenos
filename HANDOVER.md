@@ -97,6 +97,15 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * A caixa de detalhes de metas que antes exibia a mensagem estática *"Aguardando implementação..."* agora lista dinamicamente todas as contribuições financeiras reais vinculadas àquela meta (filtradas por `goal_id`), com a data e valor corretos de cada aporte.
   * Sanamos incompatibilidades de propriedades e chaves no [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx) e [types.ts](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/types.ts).
 
+### 11. Eliminação de Comandos Repetidos e Otimização do Supabase CDC
+* **O Problema de Duplicidade**: 
+  * Identificamos que o Supabase CDC (Change Data Capture/Postgres Realtime Subscriptions) disparava recargas completas de dados da nuvem (`loadUserData`) toda vez que ocorria uma alteração no banco.
+  * No entanto, isso acontecia mesmo quando a mutação era gerada pelo próprio cliente/dispositivo do usuário localmente (que já havia atualizado o estado do React instantaneamente de forma otimista). Isso causava centenas de leituras redundantes e comandos de rede duplicados à API do Supabase na nuvem a cada transação, meta ou pote criado.
+* **A Solução (Bypass de Mutação Recente)**:
+  * Criamos uma função de timestamp global no [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx): `registerLocalMutation` (registrando o timestamp `window.zenos_last_local_mutation = Date.now()`).
+  * Vinculamos esse registro em todos os métodos de persistência e mutação do app, incluindo a função genérica `updateAndSave` e o método de novas transações `handleAddTransaction`.
+  * No listener do realtime `handleRemoteChange`, adicionamos uma validação: se o evento de alteração CDC ocorrer há menos de 3.5 segundos de uma mutação local feita pelo próprio dispositivo, o disparo de recarga é ignorado, bloqueando requisições duplicadas. As recargas em tempo real continuam funcionando normalmente apenas quando as alterações vêm de outros dispositivos conectados.
+
 ---
 
 ## 🧪 Status de Builds e Testes
