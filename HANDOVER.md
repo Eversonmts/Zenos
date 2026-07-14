@@ -106,6 +106,16 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Vinculamos esse registro em todos os métodos de persistência e mutação do app, incluindo a função genérica `updateAndSave` e o método de novas transações `handleAddTransaction`.
   * No listener do realtime `handleRemoteChange`, adicionamos uma validação: se o evento de alteração CDC ocorrer há menos de 3.5 segundos de uma mutação local feita pelo próprio dispositivo, o disparo de recarga é ignorado, bloqueando requisições duplicadas. As recargas em tempo real continuam funcionando normalmente apenas quando as alterações vêm de outros dispositivos conectados.
 
+### 12. Recriação da Lógica PWA e Suporte Nativo para Windows
+* **Exclusão e Recriação de Componentes**:
+  * Excluímos a antiga lógica quebrada e reescrevemos do zero os módulos e arquivos responsáveis por tornar o app instalável: [pwaInstall.ts](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/services/pwaInstall.ts) (controle centralizado do singleton de prompt do navegador) e o banner [InstallPrompt.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/InstallPrompt.tsx).
+* **Service Workers Unificados**:
+  * Corrigimos o [sw.js](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/sw.js) da raiz e o [public/sw.js](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/public/sw.js) para atuarem como Service Workers PWA ativos persistentes, contendo obrigatoriamente o evento `'fetch'` respondendo com pass-through da rede (`fetch(event.request)`). Isso atende ao critério de instalabilidade exigido pelo Google Chrome no Windows sem prender arquivos antigos no cache.
+* **Manifesto e Ícones PNG**:
+  * Para atender às regras rígidas do Chrome e Edge do Windows, geramos imagens PNG de alta fidelidade e resolução (`icon-192.png` e `icon-512.png`) na pasta `public/` através de script do PowerShell.
+  * Atualizamos o [manifest.json](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/manifest.json) para linkar os novos ícones PNG, marcando-os como `"type": "image/png"` com finalidades `"any"` e `"maskable"`.
+  * Corrigimos o parâmetro `"prefer_related_applications": false` para evitar que o navegador Windows bloqueie a instalação à procura de um app inexistente na loja nativa.
+
 ---
 
 ## 🧪 Status de Builds e Testes
