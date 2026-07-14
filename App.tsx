@@ -5,7 +5,7 @@ import {
   AlertCircle, Plus, Settings as SettingsIcon, Camera, Mic, Loader2, StopCircle, LogOut, Shield, Wallet, Lock, Crown, Check, CreditCard as CreditCardIcon, ShoppingBag, Activity, ArrowUpCircle, ArrowDownCircle, Eye, Fingerprint,
   BarChart2, CheckSquare, StickyNote, Book, Calendar as CalendarIcon, MessageSquare, PieChart, Tag, ShoppingCart
 } from 'lucide-react';
-import { AppView, Transaction, Account, Debt, Goal, Category, Subcategory, Profile, Plan, Settings as SettingsType, FinancialData, Subscription, Task, Note, JournalEntry, CalendarEvent, Budget, TransactionAllocation, CreditCard, ShoppingItem } from './types';
+import { AppView, Transaction, Account, Pot, Debt, Goal, Category, Subcategory, Profile, Plan, Settings as SettingsType, FinancialData, Subscription, Task, Note, JournalEntry, CalendarEvent, Budget, TransactionAllocation, CreditCard, ShoppingItem } from './types';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import Compromissos from './components/Compromissos';
@@ -110,6 +110,7 @@ export default function App() {
   const [showCardExpenseModal, setShowCardExpenseModal] = useState(false);
   const [isAIScannerOpen, setIsAIScannerOpen] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [pots, setPots] = useState<Pot[]>([]);
   const [debts, setDebts] = useState<Debt[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -356,6 +357,11 @@ export default function App() {
           : await db.ensureDefaultAccounts(userId, data.accounts || []);
         setAccounts(safeAccounts.length ? safeAccounts : INITIAL_ACCOUNTS);
 
+        const safePots = data.pots?.length
+          ? data.pots
+          : await db.ensureDefaultPots(userId, data.pots || []);
+        setPots(safePots.length ? safePots : []);
+
         setDebts(data.debts || []);
         setGoals(data.goals || []);
 
@@ -425,35 +431,35 @@ export default function App() {
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     // IMPORTANT: Pot balances are accumulated strictly from actual data already
-    // persisted (income via transaction_allocations, expenses via transactions
-    // directly tagged to that account_id). We intentionally do NOT recompute
+    // persisted (income via transaction_allocations/pot_allocations, expenses via transactions
+    // directly tagged to that pot_id). We intentionally do NOT recompute
     // "all-time income x current percentage" here - that would retroactively
     // change historical allocations every time a percentage is edited or a new
     // pot is created. Percentages only affect how *new* income entries split.
-    const processed = accounts.map(acc => {
+    const processedPots = pots.map(pot => {
       const incomes = transactionAllocations
-        .filter(a => a.account_id === acc.id)
+        .filter(a => a.account_id === pot.id)
         .reduce((sum, a) => sum + Number(a.amount), 0);
 
-      // Receita manual, lançada direto numa conta específica (sem passar pelo rateio automático)
+      // Receita manual, lançada direto num pote específico
       const directIncomes = transactions
-        .filter(t => t.type === 'income' && t.account_id === acc.id)
+        .filter(t => t.type === 'income' && (t.pot_id === pot.id || t.account_id === pot.id))
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       const expenses = transactions
-        .filter(t => t.type === 'expense' && t.account_id === acc.id)
+        .filter(t => t.type === 'expense' && (t.pot_id === pot.id || t.account_id === pot.id))
         .reduce((sum, t) => sum + Number(t.amount), 0);
 
       return {
-        ...acc,
-        current_balance: Number(acc.balance_initial || 0) + incomes + directIncomes - expenses
+        ...pot,
+        current_balance: incomes + directIncomes - expenses
       };
     });
 
-    const total = processed.reduce((sum, a) => sum + a.current_balance, 0);
+    const total = processedPots.reduce((sum, a) => sum + a.current_balance, 0);
 
     return { 
-      processedAccounts: processed, 
+      processedAccounts: processedPots, // Mapeado como processedAccounts para compatibilidade de props do Dashboard e Potes
       totalBalance: total, 
       totalMonthlyIncome: monthlyIncome,
       monthExpenses: monthlyExpenses
@@ -1381,8 +1387,8 @@ export default function App() {
                 transactions={transactions}
                 allocations={transactionAllocations}
                 categories={categories}
-                onUpdate={(newAccounts: Account[]) => {
-                  updateAndSave(() => newAccounts, setAccounts, db.saveAccounts);
+                onUpdate={(newPots: any[]) => {
+                  updateAndSave(() => newPots, setPots, db.savePots);
                 }} 
                 activeUser={activeUser}
                 activePlan={plans.find(p => p.id === activeUser?.plan_id) || plans.find(p => p.name === activeUser?.plan) || null}

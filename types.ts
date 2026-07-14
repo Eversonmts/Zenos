@@ -88,17 +88,30 @@ export interface Account {
   type: AccountType;
   balance_initial: number;
   current_balance: number;
-  percentage: number; // For revenue apportionment
+  percentage?: number; // For compatibility in frontend
   is_active: boolean;
   color: string | null;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
+}
+
+export interface Pot {
+  id: string;
+  user_id: string;
+  name: string;
+  percentage: number;
+  current_balance: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
 }
 
 export interface Transaction {
   id: string;
   user_id: string;
   account_id: string | null;
+  pot_id?: string | null;
   category_id: string | null;
   subcategory_id: string | null;
   type: TransactionType;
@@ -107,21 +120,21 @@ export interface Transaction {
   date_at: string;
   payment_method: string | null;
   is_recurring: boolean;
+  status?: 'Realizado' | 'Pendente';
   note?: string | null;
   item?: string | null;
   location?: string | null;
   goal_id?: string | null;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 
-// Rateio de uma receita entre potes. A transação em si é única (aparece uma vez
-// em Movimentações); este registro só existe para detalhar quanto foi para cada
-// pote, consultado na tela de "Detalhes" de cada pote.
+// Rateio de uma receita entre potes.
 export interface TransactionAllocation {
   id: string;
   transaction_id: string;
-  account_id: string;
+  account_id: string; // Mapeia para o pot_id
   amount: number;
   created_at: string;
 }
@@ -144,6 +157,7 @@ export interface Goal {
   status: GoalStatus;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 
 export interface Debt {
@@ -309,6 +323,7 @@ export interface FinancialData {
   categories: Category[];
   subcategories: Subcategory[];
   accounts: Account[];
+  pots: Pot[];
   transactions: Transaction[];
   transaction_allocations: TransactionAllocation[];
   cards: CreditCard[];

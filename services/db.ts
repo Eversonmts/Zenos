@@ -2,7 +2,7 @@
 import { supabase } from './supabase';
 import { testDb } from './testDb';
 import {
-  Profile, Transaction, Account, Debt, Goal, Category,
+  Profile, Transaction, Account, Pot, Debt, Goal, Category,
   FinancialData, Settings, AdminLog, Plan, Subscription, TransactionAllocation
 } from '../types';
 
@@ -95,7 +95,8 @@ const saveLocalData = (userId: string, data: Partial<FinancialData>) => {
       calendar: [],
       budgets: [],
       settings: [],
-      shopping_list: []
+      shopping_list: [],
+      pots: []
     };
     const updated = { ...current, ...data };
     localStorage.setItem(LOCAL_STORAGE_KEY + userId, JSON.stringify(updated));
@@ -265,7 +266,7 @@ export const db = {
       return {
         profiles: [], plans: [], subscriptions: [], categories: DEFAULT_CATEGORIES,
         subcategories: [], transaction_allocations: [], cards: [],
-        accounts: INITIAL_ACCOUNTS, transactions: [], goals: [], debts: [],
+        accounts: INITIAL_ACCOUNTS, pots: [], transactions: [], goals: [], debts: [],
         tasks: [], notes: [], journal: [], calendar: [], budgets: [],
         settings: [], shopping_list: []
       };
@@ -296,7 +297,7 @@ export const db = {
       return fallback || {
         profiles: [], plans: [], subscriptions: [], categories: DEFAULT_CATEGORIES,
         subcategories: [], transaction_allocations: [], cards: [],
-        accounts: INITIAL_ACCOUNTS, transactions: [], goals: [], debts: [],
+        accounts: INITIAL_ACCOUNTS, pots: [], transactions: [], goals: [], debts: [],
         tasks: [], notes: [], journal: [], calendar: [], budgets: [],
         settings: [], shopping_list: []
       };
@@ -362,6 +363,7 @@ export const db = {
         syncTable('categories', withUser(local.categories?.filter(c => c.user_id !== null) || [])),
         syncTable('subcategories', withUser(local.subcategories || [])),
         syncTable('accounts', withUser(local.accounts || [])),
+        syncTable('pots', withUser(local.pots || [])),
         syncTable('transactions', withUser(local.transactions || [])),
         syncTable('goals', withUser(local.goals || [])),
         syncTable('debts', withUser(local.debts || [])),
@@ -473,8 +475,8 @@ export const db = {
     if ((count ?? 0) > 0) return existingAccounts;
 
     const defaults = [
-      { user_id: userId, name: 'Operacional', type: 'bank', balance_initial: 0, current_balance: 0, percentage: 60, is_active: true, color: '#4F46E5' },
-      { user_id: userId, name: 'Reserva', type: 'investment', balance_initial: 0, current_balance: 0, percentage: 40, is_active: true, color: '#10B981' }
+      { user_id: userId, name: 'Operacional', type: 'bank', balance_initial: 0, current_balance: 0, is_active: true, color: '#4F46E5' },
+      { user_id: userId, name: 'Reserva', type: 'investment', balance_initial: 0, current_balance: 0, is_active: true, color: '#10B981' }
     ];
 
     try {
@@ -490,13 +492,53 @@ export const db = {
     }
   },
 
+  ensureDefaultPots: async (userId: string, existingPots: Pot[]): Promise<Pot[]> => {
+    if (isTestUser(userId)) return existingPots;
+
+    const { count, error: countError } = await supabase
+      .from('pots')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('deleted_at', null);
+
+    if (countError) {
+      console.error('Failed to check existing pots, skipping seed:', countError);
+      return existingPots;
+    }
+    if ((count ?? 0) > 0) return existingPots;
+
+    const defaults = [
+      { user_id: userId, name: 'Essencial', percentage: 50, current_balance: 0, color: '#4F46E5' },
+      { user_id: userId, name: 'Investimentos', percentage: 30, current_balance: 0, color: '#10B981' },
+      { user_id: userId, name: 'Lazer', percentage: 20, current_balance: 0, color: '#EC4899' }
+    ];
+
+    try {
+      const { data, error } = await supabase
+        .from('pots')
+        .upsert(defaults, { onConflict: 'user_id,name', ignoreDuplicates: true })
+        .select('*');
+      if (error) throw error;
+      return [...existingPots, ...(data as Pot[])];
+    } catch (error) {
+      console.error('Failed to seed default pots:', error);
+      return existingPots;
+    }
+  },
+
   // Exclusão real no Supabase. Diferente de um "save" (que só faz upsert dos itens
   // que sobraram), isso garante que o registro apagado localmente também seja
   // removido de verdade no banco - essencial pra sincronizar exclusões entre
   // dispositivos diferentes.
   deleteRow: async (table: string, id: string) => {
-    const { error } = await supabase.from(table).delete().eq('id', id);
-    if (error) { console.error(`Failed to delete row from ${table}:`, error); throw error; }
+    const softDeleteTables = ['accounts', 'categories', 'pots', 'goals', 'transactions'];
+    if (softDeleteTables.includes(table)) {
+      const { error } = await supabase.from(table).update({ deleted_at: new Date().toISOString() }).eq('id', id);
+      if (error) { console.error(`Failed to soft-delete row from ${table}:`, error); throw error; }
+    } else {
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (error) { console.error(`Failed to delete row from ${table}:`, error); throw error; }
+    }
   },
 
   // --- SPECIFIC SAVERS ---
@@ -538,6 +580,13 @@ export const db = {
     if (isTestUser(userId)) return;
     const { error } = await supabase.from('accounts').upsert(accounts.map(a => ({ ...a, user_id: userId })));
     if (error) { console.error("Failed to save accounts:", error); throw error; }
+  },
+
+  savePots: async (userId: string, pots: Pot[]) => {
+    saveLocalData(userId, { pots });
+    if (isTestUser(userId)) return;
+    const { error } = await supabase.from('pots').upsert(pots.map(p => ({ ...p, user_id: userId })));
+    if (error) { console.error("Failed to save pots:", error); throw error; }
   },
 
   saveDebts: async (userId: string, debts: Debt[]) => {
@@ -690,10 +739,15 @@ export const db = {
 
 // Fetches every user-owned table from Supabase in parallel.
 async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
-  const tables = ['categories', 'subcategories', 'accounts', 'transactions', 'goals', 'debts', 'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards', 'shopping_list' as any] as const;
+  const tables = ['categories', 'subcategories', 'accounts', 'pots', 'transactions', 'goals', 'debts', 'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards', 'shopping_list' as any] as const;
 
   const fetchPromises = tables.map(async (table) => {
-    const { data, error } = await supabase.from(table).select('*').eq('user_id', userId);
+    let query = supabase.from(table).select('*').eq('user_id', userId);
+    const softDeleteTables = ['accounts', 'categories', 'pots', 'goals', 'transactions'];
+    if (softDeleteTables.includes(table)) {
+      query = query.is('deleted_at', null);
+    }
+    const { data, error } = await query;
     if (error) {
       const isMissingTable =
         error.code === 'PGRST114' ||
@@ -717,7 +771,7 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
   const byTable = Object.fromEntries(tables.map((t, i) => [t, results[i]]));
 
   // System-wide default categories (user_id IS NULL) are shared by everyone.
-  const { data: systemCategories } = await supabase.from('categories').select('*').is('user_id', null);
+  const { data: systemCategories } = await supabase.from('categories').select('*').is('user_id', null).is('deleted_at', null);
 
   // Alocações não têm user_id direto (ligam por transaction_id) - busca pelas
   // transações do usuário que acabamos de carregar.
@@ -747,6 +801,7 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
     categories: [...(systemCategories || []), ...byTable.categories] as Category[],
     subcategories: byTable.subcategories as any[],
     accounts: byTable.accounts as Account[],
+    pots: byTable.pots as Pot[],
     transactions: byTable.transactions as Transaction[],
     transaction_allocations: allocations,
     goals: byTable.goals as Goal[],
