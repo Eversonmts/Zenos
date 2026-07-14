@@ -116,6 +116,15 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Atualizamos o [manifest.json](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/manifest.json) para linkar os novos ícones PNG, marcando-os como `"type": "image/png"` com finalidades `"any"` e `"maskable"`.
   * Corrigimos o parâmetro `"prefer_related_applications": false` para evitar que o navegador Windows bloqueie a instalação à procura de um app inexistente na loja nativa.
 
+### 13. Correção de Desaparecimento de Lançamentos (Sanitização Strict no Supabase)
+* **Causa do Desaparecimento**:
+  * O frontend do ZenOS estendeu a interface de transações (`Transaction` no `types.ts`) adicionando propriedades úteis de interface e metas (como `goal_id`, `subcategory_id`, `item`, `location`).
+  * Porém, a tabela `transactions` no Supabase não possui essas colunas. Quando o frontend executava o `upsert` enviando o objeto completo, o Supabase rejeitava a transação com erro `400 (column does not exist)`.
+  * Como a query falhava, o app entrava no fallback de salvamento local. Mas, na inicialização subsequente do app, o `refreshFromSupabase` sobrescrevia o cache do LocalStorage com o estado da nuvem (onde a transação não existia), fazendo-a desaparecer da tela após o fechamento/reabertura do app.
+* **A Solução (Sanitização no db.ts)**:
+  * Ajustamos a função `saveTransactions` no [db.ts](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/services/db.ts) para realizar uma sanitização estrita antes de rodar o `upsert`.
+  * Filtramos e passamos apenas as colunas oficiais mapeadas na tabela do Supabase. Com isso, os inserts na nuvem são efetuados com sucesso completo e os lançamentos são persistidos definitivamente, permanecendo visíveis após reabrir o app.
+
 ---
 
 ## 🧪 Status de Builds e Testes
