@@ -147,6 +147,16 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Adicionamos a visualização física do **"Saldo nos Potes"** (que soma os saldos reais de todos os potes) no cabeçalho superior do [Potes.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Potes.tsx).
   * Ajustamos o `totalBalance` na raiz do [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx) e no [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) para computar a soma exata de todos os potes ativos, refletindo essa soma consolidada no **"Saldo Disponível"** no topo da tela principal.
 
+### 16. Auto-Migração de Dados (Auto-Healing) e Correção de Saldo Zerado no Card
+* **Causa do Saldo Zerado**:
+  * Os potes originais do usuário residiam na tabela `accounts` com IDs (UUIDs) antigos associados às suas receitas e alocações de rateio (`transaction_allocations`).
+  * Na migração para a tabela dedicada `pots`, o seed padrão gerou IDs novos para os potes ("Essencial", "Investimentos", "Lazer"). Isso quebrou o vínculo com as alocações e despesas antigas no banco, fazendo o cálculo de saldo (`current_balance`) de cada pote zerar e as transações de histórico do pote no card sumirem.
+* **A Solução (Auto-Migração em Tempo de Execução)**:
+  * Desenvolvemos um mecanismo de migração em tempo de execução na função `ensureDefaultPots` do [db.ts](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/services/db.ts) que roda de forma transparente na sessão autenticada do usuário.
+  * O app identifica se há registros de potes antigos (contas com `percentage > 0`) na tabela `accounts` e os migra para a tabela dedicada `pots` **preservando exatamente o mesmo ID (UUID)** histórico.
+  * Após migrar, o app zera a coluna `percentage` nas contas correspondentes na tabela `accounts` no Supabase para limpar a tabela de contas físicas e evitar duplicidades.
+  * Ajustamos a listagem de histórico no card do pote no [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) para buscar transações filtrando por `t.pot_id === account.id || t.account_id === account.id` (garantindo que tanto transações antigas quanto novas apareçam). Com isso, todos os saldos e históricos do card voltaram a bater imediatamente.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
