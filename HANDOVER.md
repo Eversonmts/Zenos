@@ -157,10 +157,27 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Após migrar, o app zera a coluna `percentage` nas contas correspondentes na tabela `accounts` no Supabase para limpar a tabela de contas físicas e evitar duplicidades.
   * Ajustamos a listagem de histórico no card do pote no [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) para buscar transações filtrando por `t.pot_id === account.id || t.account_id === account.id` (garantindo que tanto transações antigas quanto novas apareçam). Com isso, todos os saldos e históricos do card voltaram a bater imediatamente.
 
+### 17. Recriação Completa e Autoteste do Banco de Dados no Novo Supabase
+* **O Contexto**: O banco de dados foi completamente resetado/excluído. Recebemos a URL do novo projeto Supabase (`ylanzkfdjvkjubolcgqq`), a Service Role Key, a Anon Key e a senha do Postgres (`Zenos2026DbPass`).
+* **A Solução**:
+  * Desenvolvemos e rodamos uma rotina de migração programática passo a passo (`deploy_db.js`). O script executa de forma isolada a DDL de cada recurso e em seguida roda uma query de autoteste contra o Postgres remoto via pooler (`6543`) com SSL, validando a criação correta de cada estrutura antes de prosseguir.
+  * O loop completou com **100% de sucesso** em todas as 17 etapas unitárias, incluindo:
+    1. Extensões e Enums do schema
+    2. Tabelas base (`plans`, `profiles`, `subscriptions`, `categories`, `accounts`, `pots`)
+    3. Tabelas transacionais e relacionais (`transactions`, `transaction_allocations`)
+    4. Tabelas auxiliares (`goals`, `debts`, `settings`, `guest_backups`, `user_credentials`)
+    5. Triggers de auto-atualização `updated_at`
+    6. Funções de trigger e hooks para cadastro de novos usuários autenticados (`handle_new_user`)
+    7. Configurações de RLS e políticas de segurança
+    8. Triggers de auto-rateio financeiro nos potes (`handle_auto_revenue_apportionment`)
+    9. Índices de alta performance e tabelas de administração.
+  * Atualizamos o `.env` local e o [vite.config.ts](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/vite.config.ts) para referenciar as credenciais públicas do novo projeto Supabase como fallbacks de compilação.
+  * Removemos o script temporário de migração por questões de segurança (para não deixar credenciais expostas no código).
+
 ---
 
 ## 📌 Guia de Deploy Vercel
 Para colocar as alterações de chaves no ar:
 1. Vá nas configurações de variáveis de ambiente do projeto na Vercel (*Settings > Environment Variables*).
-2. Adicione a variável `GEMINI_API_KEY` com a chave secreta.
+2. Atualize as variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` com os dados do novo banco.
 3. Realize um novo deploy do projeto para aplicar as variáveis no build estático do Vite.
