@@ -190,6 +190,17 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Tipografia e Contraste**: Substituímos os textos brancos puros por cinza claro suave (#E2E8F0) e textos secundários por cinza médio (#94A3B8). Os inputs e campos de seleção ganharam contraste especial.
   * **Cores Pastéis nos Gráficos**: Refatoramos as paletas de cores de Recharts no [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) e [AnalyticsDashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/AnalyticsDashboard.tsx) para utilizarem tons pastéis suaves e desaturados (como verdes, vermelhos, azuis e amarelos suaves), garantindo leitura imediata e confortável das séries de dados.
 
+### 20. Correção de Sincronização e Criação de Potes e Subcategorias (Banco Remoto)
+* **O Problema**: Ao cadastrar potes ou subcategorias, os registros apareciam na tela mas sumiam ao atualizar a página (F5).
+* **As Causas**:
+  1. **Tabela `subcategories` inexistente**: A tabela `subcategories` não havia sido declarada nas migrações locais, fazendo a API do Supabase retornar erro `404 Not Found` no `upsert` e crashar silenciosamente a sincronização local.
+  2. **Ausência de Constraint de Conflito em `pots`**: O seed automático de potes do app (`ensureDefaultPots`) executa um `upsert` com a cláusula `onConflict: 'user_id,name'`. Contudo, a tabela `pots` no Supabase não possuía uma restrição única (`UNIQUE`) combinando essas duas colunas. O Postgres remoto rejeitava a operação com o erro `no unique constraint matching the ON CONFLICT specification`.
+  3. **Comportamento de Cache**: Quando essas chamadas falhavam silenciosamente, o app renderizava os dados temporariamente do estado React local, mas ao recarregar a página (F5), o `refreshFromSupabase` do app sincronizava com a lista vazia do Supabase remoto e limpava os dados locais do localStorage.
+* **A Solução**:
+  * **Criação de `subcategories`**: Conectamos ao banco de dados remoto via TCP e criamos fisicamente a tabela `public.subcategories`, habilitamos o RLS correspondente por usuário, criamos as políticas de acesso e o trigger de sincronização de datas.
+  * **Constraint UNIQUE em `pots`**: Limpamos possíveis registros duplicados de teste na tabela `pots` e aplicamos fisicamente a restrição `UNIQUE (user_id, name)`.
+  * Ambas as tabelas no Supabase agora aceitam e gravam os novos cadastros com sucesso absoluto!
+
 ---
 
 ## 📌 Guia de Deploy Vercel
