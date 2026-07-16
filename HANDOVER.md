@@ -182,6 +182,14 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Tela de Nova Senha**: Adicionamos o estado de visualização `'reset'` ao [LoginModal.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/LoginModal.tsx). Quando a recuperação é detectada no [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx), o modal de login é forçado a abrir neste modo, exibindo um formulário exclusivo com campo para a nova senha.
   * **Persistência e Update**: A nova senha é enviada via API `supabase.auth.updateUser` e, se for bem-sucedida, o usuário já é autenticado automaticamente no Dashboard com a nova credencial de acesso.
 
+### 19. Refatoração Premium de Dark Mode UI/UX
+* **O Contexto**: O modo escuro anterior possuía baixo contraste, tons pretos puros e cores neon saturadas nos gráficos que causavam fadiga visual e dificultavam a legibilidade.
+* **A Solução**:
+  * **Remoção do Preto Puro**: Sobrescrevemos o fundo escuro nativo do `index.html` e a classe `.dark` para utilizar um cinza escuro premium (#0F172A), eliminando o preto absoluto (#000000).
+  * **Hierarquia e Elevação**: Adicionamos regras CSS globais no [index.css](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/index.css) que interceptam e elevam todos os cards, modais e containers para um cinza ligeiramente mais claro (#1E293B), com uma borda extremamente sutil e fina de `1px solid rgba(255, 255, 255, 0.08)` para demarcar limites de layout.
+  * **Tipografia e Contraste**: Substituímos os textos brancos puros por cinza claro suave (#E2E8F0) e textos secundários por cinza médio (#94A3B8). Os inputs e campos de seleção ganharam contraste especial.
+  * **Cores Pastéis nos Gráficos**: Refatoramos as paletas de cores de Recharts no [Dashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/Dashboard.tsx) e [AnalyticsDashboard.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/AnalyticsDashboard.tsx) para utilizarem tons pastéis suaves e desaturados (como verdes, vermelhos, azuis e amarelos suaves), garantindo leitura imediata e confortável das séries de dados.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
