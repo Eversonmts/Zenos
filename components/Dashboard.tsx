@@ -45,7 +45,7 @@ export default function Dashboard({
   const { transactions, accounts, pots = [], debts, goals, tasks, notes, journal, budgets } = data;
   
   // Use props if available, otherwise calculate locally
-  const currentTotalBalance = propTotalBalance ?? accounts.reduce((acc, a) => acc + Number(a.current_balance), 0);
+  const currentTotalBalance = propTotalBalance ?? pots.reduce((acc, p) => acc + Number(p.current_balance), 0);
   const currentMonthlyIncome = propTotalMonthlyIncome ?? transactions
     .filter(t => t.type === 'income' && t.date_at?.startsWith(new Date().toISOString().slice(0, 7)))
     .reduce((acc, t) => acc + Number(t.amount), 0);
@@ -577,7 +577,7 @@ export default function Dashboard({
                               );
                             })}
                           
-                          {filteredTransactions.filter(t => t.account_id === account.id).length === 0 && accountSearch !== '' && (
+                          {filteredTransactions.filter(t => t.pot_id === account.id || t.account_id === account.id).length === 0 && accountSearch !== '' && (
                             <p className="text-center py-4 text-[8px] font-black text-slate-500 uppercase tracking-widest italic">Nenhum resultado</p>
                           )}
                         </div>

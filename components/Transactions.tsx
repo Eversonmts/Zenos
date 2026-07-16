@@ -127,7 +127,8 @@ export default function Transactions({
       subcategory_id: '',
       type,
       date_at: new Date().toISOString().split('T')[0],
-      account_id: type === 'expense' && accounts.length > 0 ? accounts[0].id : '',
+      account_id: null,
+      pot_id: type === 'expense' && pots.length > 0 ? pots[0].id : '',
       payment_method: isWithdrawal ? 'Dinheiro' : 'PIX',
       is_recurring: false,
       note: isWithdrawal ? 'Retirada de valor' : ''
@@ -202,11 +203,11 @@ export default function Transactions({
       return;
     }
 
-    if (currentTx.type === 'expense' && !currentTx.account_id) {
+    if (currentTx.type === 'expense' && !currentTx.pot_id) {
       if (showToast) {
-        showToast("Selecione um Pote (Conta) para este gasto.", "error");
+        showToast("Selecione um Pote para este gasto.", "error");
       } else {
-        alert("Selecione um Pote (Conta) para este gasto.");
+        alert("Selecione um Pote para este gasto.");
       }
       return;
     }
@@ -216,6 +217,7 @@ export default function Transactions({
       user_id: activeUserId,
       category_id: finalCategoryId,
       subcategory_id: finalSubcategoryId || null,
+      account_id: null,
       id: modalType === 'add' ? crypto.randomUUID() : (currentTx as Transaction).id,
       created_at: (currentTx as any).created_at || new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -360,7 +362,7 @@ export default function Transactions({
             </div>
             <div className="flex justify-between items-center border-t border-slate-100 dark:border-white/5 pt-2">
               <span className="text-[8px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest">
-                {t.type === 'income' ? 'RECEITA' : (accounts.find(p => p.id === t.account_id)?.name || 'OUTRO')}
+                {t.type === 'income' ? (t.pot_id ? `RECEITA DIRETAS (${pots.find(p => p.id === t.pot_id)?.name})` : 'RATEIO AUTOMÁTICO') : (pots.find(p => p.id === t.pot_id)?.name || 'POTE INDEFINIDO')}
               </span>
               <div className="flex gap-1.5">
                 <button onClick={() => handleOpenEdit(t)} className="p-2 text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900/50 rounded-lg hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"><Edit2 className="w-3.5 h-3.5" /></button>
@@ -481,27 +483,18 @@ export default function Transactions({
                 </select>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Conta Bancária</label>
-                <select 
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none text-sm" 
-                  value={currentTx.account_id || ''} 
-                  onChange={e => setCurrentTx({...currentTx, account_id: e.target.value || null})}
-                >
-                  <option value="">Selecione a Conta...</option>
-                  {accounts.map(p => <option key={p.id} value={p.id}>{p.name} (R$ {p.current_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>)}
-                </select>
-              </div>
-
-              {currentTx.type === 'expense' && pots && pots.length > 0 && (
-                <div className="space-y-1.5 mt-3">
-                  <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">Pote Virtual</label>
+              {/* O seletor de Pote é exibido de forma dedicada para as despesas e receitas diretas */}
+              {pots && pots.length > 0 && (
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-550 dark:text-slate-400 uppercase ml-1">
+                    {currentTx.type === 'expense' ? 'Pote de Origem (Débito)' : 'Pote de Destino (Opcional)'}
+                  </label>
                   <select 
                     className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-[#212529] dark:text-white outline-none text-sm" 
                     value={currentTx.pot_id || ''} 
                     onChange={e => setCurrentTx({...currentTx, pot_id: e.target.value || null})}
                   >
-                    <option value="">Selecione o Pote...</option>
+                    <option value="">{currentTx.type === 'expense' ? 'Selecione o Pote...' : 'Ratear automaticamente entre todos os potes'}</option>
                     {pots.map(p => <option key={p.id} value={p.id}>{p.name} (R$ {p.current_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})</option>)}
                   </select>
                 </div>
