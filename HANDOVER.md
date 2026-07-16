@@ -201,6 +201,16 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Constraint UNIQUE em `pots`**: Limpamos possíveis registros duplicados de teste na tabela `pots` e aplicamos fisicamente a restrição `UNIQUE (user_id, name)`.
   * Ambas as tabelas no Supabase agora aceitam e gravam os novos cadastros com sucesso absoluto!
 
+### 21. Sincronização Estrita de Transações com Potes e Subcategorias
+* **O Problema**: A inserção de gastos (despesas) que possuíam subcategorias continuava a falhar, e ao atualizar a página (F5) os potes e subcategorias associados às transações sumiam da tela ou voltavam vazios.
+* **As Causas**:
+  1. **Coluna `subcategory_id` inexistente na tabela `transactions`**: A tabela `public.transactions` no banco de dados remoto do Supabase não possuía a coluna física `subcategory_id` para referenciar a tabela `subcategories`.
+  2. **Omissão de Mapeamento**: A função de sanitização `saveTransactions` em [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) omitia os campos `pot_id` e `subcategory_id` na hora de enviar o objeto de transação limpo para a API `.upsert()` do Supabase remoto. Por conta disso, as transações eram salvas no Supabase com esses valores como `null`. No recarregamento da página (F5), os dados eram sobrescritos pelo Supabase com os campos zerados.
+* **A Solução**:
+  * **Alteração Estrutural**: Executamos via Postgres a adição da coluna `subcategory_id UUID REFERENCES public.subcategories(id) ON DELETE SET NULL` na tabela `public.transactions` no Supabase remoto.
+  * **Atualização do Mapeador**: Modificamos o `cleanTxs` no [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) para mapear e enviar corretamente os campos `pot_id` e `subcategory_id` na chamada de persistência do Supabase.
+  * **Fluxo de Novos Usuários**: O trigger `handle_new_user` no Supabase remoto está 100% íntegro e garante que qualquer cadastro crie automaticamente o perfil, configurações iniciais de tema, categorias padrão de transação e semeie os três potes ("Essencial", "Investimentos", "Lazer").
+
 ---
 
 ## 📌 Guia de Deploy Vercel
