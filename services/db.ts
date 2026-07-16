@@ -634,6 +634,8 @@ export const db = {
       id: t.id,
       user_id: userId,
       account_id: t.account_id,
+      pot_id: t.pot_id || null,
+      subcategory_id: t.subcategory_id || null,
       category_id: t.category_id,
       type: t.type,
       description: t.description || '',
