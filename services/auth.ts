@@ -7,6 +7,7 @@ const CURRENT_USER_KEY = 'zen_current_user';
 const TEST_MODE_KEY = 'zen_test_mode';
 
 let userChangeListener: ((user: Profile | null) => void) | null = null;
+let passwordRecoveryListener: (() => void) | null = null;
 
 // Seed Admin (used only to grant the admin role by email on first login/signup)
 const SEED_ADMIN_EMAIL = 'mattos.mmn@gmail.com';
@@ -51,6 +52,9 @@ export const initializeAuth = (onUserChanged: (user: Profile | null) => void) =>
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN') {
       localStorage.removeItem(TEST_MODE_KEY);
+    }
+    if (event === 'PASSWORD_RECOVERY') {
+      if (passwordRecoveryListener) passwordRecoveryListener();
     }
     handleAuthStateChange(event, session, onUserChanged);
   });
@@ -304,5 +308,20 @@ export const resetPassword = async (email: string): Promise<{ success: boolean, 
   } catch (error: any) {
     console.error("Reset password error:", error);
     return { success: false, message: error.message || 'Erro ao enviar e-mail de recuperação.' };
+  }
+};
+
+export const onPasswordRecovery = (callback: () => void) => {
+  passwordRecoveryListener = callback;
+};
+
+export const updatePassword = async (newPassword: string): Promise<{ success: boolean, message?: string }> => {
+  try {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    return { success: true };
+  } catch (err: any) {
+    console.error("Update password error:", err);
+    return { success: false, message: err.message || "Erro ao atualizar senha." };
   }
 };

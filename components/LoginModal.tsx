@@ -1,17 +1,22 @@
 
 import React, { useState } from 'react';
 import { X, Mail, Lock, User as UserIcon, Loader2, AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { login, register, resetPassword, loginAsTest } from '../services/auth';
+import { login, register, resetPassword, loginAsTest, updatePassword } from '../services/auth';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   isPage?: boolean;
+  initialView?: 'login' | 'register' | 'forgot' | 'reset';
 }
 
-export default function LoginModal({ isOpen, onClose, onSuccess, isPage = false }: LoginModalProps) {
-  const [view, setView] = useState<'login' | 'register' | 'forgot'>('login');
+export default function LoginModal({ isOpen, onClose, onSuccess, isPage = false, initialView = 'login' }: LoginModalProps) {
+  const [view, setView] = useState<'login' | 'register' | 'forgot' | 'reset'>(initialView);
+
+  React.useEffect(() => {
+    setView(initialView);
+  }, [initialView]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -69,6 +74,17 @@ export default function LoginModal({ isOpen, onClose, onSuccess, isPage = false 
         } else {
           setError(res.message || 'Erro ao processar solicitação.');
         }
+      } else if (view === 'reset') {
+        const res = await updatePassword(formData.password);
+        if (res.success) {
+          setSuccess('Senha redefinida com sucesso! Você já está conectado.');
+          setTimeout(() => {
+            onSuccess();
+            onClose();
+          }, 1500);
+        } else {
+          setError(res.message || 'Erro ao redefinir a senha.');
+        }
       }
     } catch (err) {
       setError('Ocorreu um erro inesperado.');
@@ -104,10 +120,10 @@ export default function LoginModal({ isOpen, onClose, onSuccess, isPage = false 
               )}
               <div>
                 <h2 className="text-2xl font-black text-[#212529] dark:text-white uppercase tracking-tighter">
-                  {view === 'login' ? 'Bem-vindo de volta' : view === 'register' ? 'Criar Conta' : 'Recuperar Senha'}
+                  {view === 'login' ? 'Bem-vindo de volta' : view === 'register' ? 'Criar Conta' : view === 'forgot' ? 'Recuperar Senha' : 'Nova Senha'}
                 </h2>
                 <p className="text-[#5c636a] dark:text-slate-600 text-xs font-bold uppercase tracking-widest mt-1">
-                  {view === 'login' ? 'Acesse sua conta admin ou pessoal' : view === 'register' ? 'Comece sua jornada financeira' : 'Enviaremos um link para o seu e-mail'}
+                  {view === 'login' ? 'Acesse sua conta admin ou pessoal' : view === 'register' ? 'Comece sua jornada financeira' : view === 'forgot' ? 'Enviaremos um link para o seu e-mail' : 'Defina sua nova senha de acesso'}
                 </p>
               </div>
             </div>
@@ -153,25 +169,27 @@ export default function LoginModal({ isOpen, onClose, onSuccess, isPage = false 
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-[#5c636a] dark:text-slate-700 uppercase tracking-widest ml-1">E-mail</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5c636a]" />
-                <input 
-                  type="email" 
-                  required 
-                  className="w-full pl-12 pr-5 py-4 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-2xl text-sm text-[#212529] dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="exemplo@email.com"
-                  value={formData.email}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
-                />
+            {view !== 'forgot' && view !== 'reset' && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-[#5c636a] dark:text-slate-700 uppercase tracking-widest ml-1">E-mail</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#5c636a]" />
+                  <input 
+                    type="email" 
+                    required 
+                    className="w-full pl-12 pr-5 py-4 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-2xl text-sm text-[#212529] dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    placeholder="exemplo@email.com"
+                    value={formData.email}
+                    onChange={e => setFormData({...formData, email: e.target.value})}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {view !== 'forgot' && (
               <div className="space-y-2">
                 <div className="flex justify-between items-center ml-1">
-                  <label className="text-[10px] font-black text-[#5c636a] dark:text-slate-700 uppercase tracking-widest">Senha</label>
+                  <label className="text-[10px] font-black text-[#5c636a] dark:text-slate-700 uppercase tracking-widest">{view === 'reset' ? 'Nova Senha' : 'Senha'}</label>
                   {view === 'login' && (
                     <button 
                       type="button"
@@ -201,7 +219,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess, isPage = false 
               disabled={loading}
               className="w-full py-4 bg-indigo-600 text-white font-black uppercase text-xs tracking-widest rounded-2xl hover:bg-indigo-500 shadow-xl shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (view === 'login' ? 'Entrar' : view === 'register' ? 'Cadastrar' : 'Enviar Link')}
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : (view === 'login' ? 'Entrar' : view === 'register' ? 'Cadastrar' : view === 'forgot' ? 'Enviar Link' : 'Salvar Senha')}
             </button>
 
             {view === 'login' && (
@@ -217,7 +235,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess, isPage = false 
           </form>
 
           <div className="mt-8 pt-6 border-t border-slate-100 dark:border-white/5 text-center">
-            {view === 'forgot' ? (
+            {view === 'forgot' || view === 'reset' ? (
               <button 
                 onClick={() => setView('login')}
                 className="text-xs font-bold text-[#5c636a] hover:text-indigo-600 transition-colors"

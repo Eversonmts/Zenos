@@ -35,7 +35,7 @@ import ZenOSLogo from './components/ZenOSLogo';
 import ZenosIAScannerModal from './components/ZenosIAScannerModal';
 import ShoppingList from './components/ShoppingList';
 import { analyzeReceipt, analyzeAudioCommand } from './services/gemini';
-import { initializeAuth, logout as authLogout, updateProfileData } from './services/auth';
+import { initializeAuth, logout as authLogout, updateProfileData, onPasswordRecovery } from './services/auth';
 import { db, onSyncStatusChange, SyncStatus, subscribeRealtime } from './services/db';
 import { financeService } from './services/finance';
 import { checkLatestVersion } from './services/versionService';
@@ -152,6 +152,7 @@ export default function App() {
   const [pinBuffer, setPinBuffer] = useState('');
   const [loading, setLoading] = useState(true);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [loginInitialView, setLoginInitialView] = useState<'login' | 'register' | 'forgot' | 'reset'>('login');
 
   useEffect(() => {
     // Timeout safety for initial load
@@ -185,6 +186,12 @@ export default function App() {
       setLoading(false);
       clearTimeout(timeoutTimer);
     });
+
+    onPasswordRecovery(() => {
+      setLoginInitialView('reset');
+      setIsLoginModalOpen(true);
+    });
+
     return () => {
       unsubscribe();
       clearTimeout(timeoutTimer);
@@ -1010,8 +1017,9 @@ export default function App() {
       <LoginModal 
         isOpen={true} 
         isPage={true}
-        onClose={() => setIsLoginModalOpen(false)} 
-        onSuccess={() => setIsLoginModalOpen(false)} 
+        onClose={() => { setIsLoginModalOpen(false); setLoginInitialView('login'); }} 
+        onSuccess={() => { setIsLoginModalOpen(false); setLoginInitialView('login'); }} 
+        initialView={loginInitialView}
       />
     );
   }
@@ -1576,11 +1584,13 @@ export default function App() {
 
       <LoginModal 
         isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)}
+        onClose={() => { setIsLoginModalOpen(false); setLoginInitialView('login'); }}
         onSuccess={() => {
           showToast("Login realizado com sucesso!", "success");
-          // The initializeAuth listener will handle the user state update
+          setIsLoginModalOpen(false);
+          setLoginInitialView('login');
         }}
+        initialView={loginInitialView}
       />
       
       {/* Sync Status Overlay */}
