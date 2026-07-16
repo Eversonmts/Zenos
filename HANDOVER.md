@@ -174,6 +174,14 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Atualizamos o `.env` local e o [vite.config.ts](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/vite.config.ts) para referenciar as credenciais públicas do novo projeto Supabase como fallbacks de compilação.
   * Removemos o script temporário de migração por questões de segurança (para não deixar credenciais expostas no código).
 
+### 18. Fluxo de Recuperação e Redefinição de Senha
+* **O Problema**: Ao clicar no link de recuperação de e-mail enviado pelo Supabase, o usuário chegava no app com o hash contendo `#access_token=...&type=recovery`. No entanto, o dev server local (`npm run dev`) havia sido desligado durante o restart da plataforma (causando o `ERR_FAILED` de conexão), e além disso o frontend não possuía uma tela/estado preparado para capturar o evento de recuperação e permitir a digitação de uma nova senha.
+* **A Solução**:
+  * **Reinicialização do Dev Server**: Reiniciamos o servidor local de desenvolvimento na porta `3000` via script em background.
+  * **Detecção de Evento do Supabase**: Ajustamos o `onAuthStateChange` em [auth.ts](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/services/auth.ts) para capturar o evento `PASSWORD_RECOVERY` emitido pelo cliente JS do Supabase Auth quando a URL contém o hash de recuperação.
+  * **Tela de Nova Senha**: Adicionamos o estado de visualização `'reset'` ao [LoginModal.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/components/LoginModal.tsx). Quando a recuperação é detectada no [App.tsx](file:///C:/Users/Everson/.gemini/antigravity/scratch/Zenos/App.tsx), o modal de login é forçado a abrir neste modo, exibindo um formulário exclusivo com campo para a nova senha.
+  * **Persistência e Update**: A nova senha é enviada via API `supabase.auth.updateUser` e, se for bem-sucedida, o usuário já é autenticado automaticamente no Dashboard com a nova credencial de acesso.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
