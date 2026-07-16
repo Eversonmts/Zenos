@@ -41,13 +41,16 @@ export const initializeAuth = (onUserChanged: (user: Profile | null) => void) =>
     }
   }
 
-  // O próprio onAuthStateChange já dispara um evento INITIAL_SESSION com a
-  // sessão atual (ou null) assim que é registrado - por isso NÃO chamamos
-  // supabase.auth.getSession() aqui também. Chamar os dois em paralelo fazia
-  // onUserChanged (e, portanto, loadUserData no App.tsx) disparar DUAS VEZES
-  // simultâneas a cada carregamento/F5 - duas cargas concorrentes de dados
-  // que podiam se pisar, uma delas terminando por último com uma foto mais
-  // antiga do que a outra já tinha carregado.
+  // Get initial session from Supabase
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session) {
+      localStorage.removeItem(TEST_MODE_KEY);
+      handleAuthStateChange('SIGNED_IN', session, onUserChanged);
+    } else if (!isTest) {
+      onUserChanged(null);
+    }
+  });
+
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN') {
       localStorage.removeItem(TEST_MODE_KEY);
@@ -90,8 +93,7 @@ const handleAuthStateChange = async (event: string, session: any, onUserChanged:
 
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(profile));
       onUserChanged(profile || null);
-    } else if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-      // INITIAL_SESSION sem sessão = não há usuário logado no carregamento atual.
+    } else if (event === 'SIGNED_OUT') {
       if (localStorage.getItem(TEST_MODE_KEY) !== 'true') {
         localStorage.removeItem(CURRENT_USER_KEY);
         onUserChanged(null);

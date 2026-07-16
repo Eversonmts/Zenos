@@ -77,21 +77,6 @@ const getLocalData = (userId: string): FinancialData | null => {
   }
 };
 
-// Faz upsert por `id` dentro do array que já está no cache local, em vez de
-// substituir o array inteiro. Usado sempre que sabemos exatamente QUAIS itens
-// mudaram (onlyNewOrUpdated) - assim um save otimista baseado num snapshot de
-// estado desatualizado nunca apaga do cache local algo que outro dispositivo
-// já tinha gravado ali (ex: cache local sobrescrito por uma foto antiga em
-// outra aba/dispositivo, fazendo o item "sumir" até o próximo refresh).
-const mergeLocalArray = <T extends { id: string }>(userId: string, key: keyof FinancialData, items: T[]) => {
-  if (!items.length) return;
-  const current = getLocalData(userId);
-  const existing: T[] = ((current as any)?.[key]) || [];
-  const map = new Map(existing.map(i => [i.id, i]));
-  items.forEach(i => map.set(i.id, i));
-  saveLocalData(userId, { [key]: Array.from(map.values()) } as any);
-};
-
 const saveLocalData = (userId: string, data: Partial<FinancialData>) => {
   try {
     const current = getLocalData(userId) || {
@@ -612,20 +597,11 @@ export const db = {
 
   // --- SPECIFIC SAVERS ---
   saveTransactions: async (userId: string, txs: Transaction[], onlyNewOrUpdated?: Transaction | Transaction[]) => {
+    saveLocalData(userId, { transactions: txs });
+    if (isTestUser(userId)) return;
     const toUpsert = onlyNewOrUpdated 
       ? (Array.isArray(onlyNewOrUpdated) ? onlyNewOrUpdated : [onlyNewOrUpdated]) 
       : txs;
-
-    // Se sabemos exatamente quais transações mudaram (onlyNewOrUpdated), faz
-    // upsert só delas em cima do que já está no cache local. Só substitui o
-    // array inteiro quando o caller manda a lista já resolvida como
-    // autoritativa e não sabe apontar o delta (ex: fluxo de exclusão).
-    if (onlyNewOrUpdated) {
-      mergeLocalArray(userId, 'transactions', toUpsert);
-    } else {
-      saveLocalData(userId, { transactions: txs });
-    }
-    if (isTestUser(userId)) return;
 
     // Sanitização estrita: envia apenas as colunas reais da tabela transactions no Supabase
     // para evitar que colunas extras do frontend (ex: subcategory_id, goal_id, item, location)
@@ -778,11 +754,7 @@ export const db = {
 
   // Salva o rateio de uma receita entre potes (não duplica a transação, só o detalhamento)
   saveAllocations: async (userId: string, allocations: TransactionAllocation[], onlyNewOrUpdated?: TransactionAllocation[]) => {
-    if (onlyNewOrUpdated) {
-      mergeLocalArray(userId, 'transaction_allocations', onlyNewOrUpdated);
-    } else {
-      saveLocalData(userId, { transaction_allocations: allocations });
-    }
+    saveLocalData(userId, { transaction_allocations: allocations });
     if (isTestUser(userId)) return;
     const toUpsert = onlyNewOrUpdated || allocations;
     if (!toUpsert.length) return;

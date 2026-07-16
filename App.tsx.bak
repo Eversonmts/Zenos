@@ -135,17 +135,6 @@ export default function App() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // Espelham sempre o valor mais recente de transactions/transactionAllocations.
-  // handleAddTransaction lê a PARTIR DAQUI (nunca da variável de estado direto),
-  // porque a variável de estado só reflete o valor da render em que a função
-  // foi criada - se uma mudança remota (outro dispositivo) chegou entre uma
-  // render e a próxima ação do usuário, ler o estado da closure monta o novo
-  // array em cima de uma foto desatualizada e "perde" o que veio de fora.
-  const transactionsRef = useRef<Transaction[]>(transactions);
-  const transactionAllocationsRef = useRef<TransactionAllocation[]>(transactionAllocations);
-  useEffect(() => { transactionsRef.current = transactions; }, [transactions]);
-  useEffect(() => { transactionAllocationsRef.current = transactionAllocations; }, [transactionAllocations]);
-
   const [user, setUser] = useState<Profile | null>(null);
   const [simulatedUser, setSimulatedUser] = useState<Profile | null>(null);
   const [isLocked, setIsLocked] = useState(false);
@@ -688,21 +677,10 @@ export default function App() {
       newEntries = Array.isArray(t) ? t : [t as Transaction];
     }
 
-    // Monta a partir do ref (sempre atual), não da variável "transactions" da
-    // closure - ela pode estar desatualizada em relação à última mudança
-    // remota (outro dispositivo) ou a uma ação anterior no mesmo tick.
-    const newTxs = [...newEntries, ...transactionsRef.current];
+    const newTxs = [...newEntries, ...transactions];
     const updatedAllocations = newAllocations.length > 0
-      ? [...transactionAllocationsRef.current, ...newAllocations]
-      : transactionAllocationsRef.current;
-
-    // Atualiza o ref já aqui (síncrono), antes mesmo do React processar o
-    // setState - protege contra dois lançamentos disparados no mesmo tick
-    // (ex: duplo clique) montando ambos em cima do mesmo estado antigo.
-    transactionsRef.current = newTxs;
-    if (newAllocations.length > 0) {
-      transactionAllocationsRef.current = updatedAllocations;
-    }
+      ? [...transactionAllocations, ...newAllocations]
+      : transactionAllocations;
 
     // Atualiza AMBOS os estados (transações + alocações) no mesmo ciclo de render,
     // para que o useMemo do totalBalance recalcule com os dois dados atualizados.
