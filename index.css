@@ -1,3 +1,98 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom Dark Mode Refactoring styles */
+.dark {
+  --background: #0F172A;
+  --surface: #1E293B;
+  --surface-border: rgba(255, 255, 255, 0.08);
+  --text-primary: #E2E8F0;
+  --text-secondary: #94A3B8;
+}
+
+/* Redefinição Global do Dark Mode para Coesão e Hierarquia Visual */
+.dark body {
+  background-color: var(--background) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Intercepta e eleva todas as caixas, cards e modais que usavam cores muito escuras ou pretas puras */
+.dark .bg-\[\#0a0c14\],
+.dark .bg-\[\#0a0b10\],
+.dark .bg-\[\#0a0c16\],
+.dark .bg-black,
+.dark .dark\:bg-\[\#0a0c14\],
+.dark .dark\:bg-\[\#0a0b10\],
+.dark .dark\:bg-\[\#0a0c16\],
+.dark .dark\:bg-black,
+.dark .dark\:bg-\[\#0a0c14\],
+.dark .dark\:bg-\[\#0a0b10\],
+.dark .dark\:bg-\[\#0a0c16\],
+.dark .dark\:bg-slate-950,
+.dark .bg-\[\#0a0c14\],
+.dark .bg-\[\#0a0b10\] {
+  background-color: var(--surface) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+
+/* Intercepta e suaviza os fundos de páginas inteiras ou containers de fundo */
+.dark .bg-\[\#030712\],
+.dark .dark\:bg-\[\#030712\],
+.dark .dark\:bg-\[\#030712\],
+.dark .bg-\[\#030712\] {
+  background-color: var(--background) !important;
+}
+
+/* Redefine bordas do Dark Mode para torná-las sutis e elegantes */
+.dark .border-slate-200,
+.dark .border-slate-100,
+.dark .border-slate-800,
+.dark .border-slate-700,
+.dark .dark\:border-white\/5,
+.dark .dark\:border-white\/10,
+.dark .border-slate-200\/10,
+.dark .border-slate-200\/20,
+.dark .border-slate-200\/30 {
+  border-color: var(--surface-border) !important;
+}
+
+/* Sobrescreve o texto branco puro por cinza claro agradável */
+.dark .text-white,
+.dark .dark\:text-white,
+.dark .text-slate-100,
+.dark .dark\:text-slate-100 {
+  color: var(--text-primary) !important;
+}
+
+/* Sobrescreve o texto secundário para cinza médio */
+.dark .text-slate-400,
+.dark .dark\:text-slate-400,
+.dark .text-\[\#5c636a\],
+.dark .text-slate-500,
+.dark .dark\:text-slate-500 {
+  color: var(--text-secondary) !important;
+}
+
+/* Garante que os inputs não fiquem escuros demais e tenham contraste premium */
+.dark input, 
+.dark select, 
+.dark textarea {
+  background-color: rgba(15, 23, 42, 0.4) !important;
+  border-color: var(--surface-border) !important;
+  color: var(--text-primary) !important;
+}
+
+.dark input::placeholder, 
+.dark select::placeholder, 
+.dark textarea::placeholder {
+  color: rgba(148, 163, 184, 0.6) !important;
+}
+
+/* Ajustes de foco nos inputs */
+.dark input:focus, 
+.dark select:focus, 
+.dark textarea:focus {
+  border-color: rgb(99, 102, 241) !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}

@@ -22,7 +22,7 @@ interface DashboardProps {
   onOpenAIScanner?: () => void;
 }
 
-const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4'];
+const COLORS = ['#818CF8', '#A78BFA', '#F472B6', '#F87171', '#FBBF24', '#34D399', '#22D3EE'];
 
 const DEFAULT_LAYOUT: DashboardLayoutItem[] = [
   { id: 'summary_widgets', visible: true, order: 0, label: 'Resumo de Saldos' },
@@ -785,13 +785,13 @@ export default function Dashboard({
                   />
                   <Bar 
                     dataKey="Entradas" 
-                    fill="#10b981" 
+                    fill="#34D399" 
                     radius={[4, 4, 0, 0]}
                     barSize={12}
                   />
                   <Bar 
                     dataKey="Saídas" 
-                    fill="#f43f5e" 
+                    fill="#F87171" 
                     radius={[4, 4, 0, 0]}
                     barSize={12}
                   />

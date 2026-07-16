@@ -14,7 +14,7 @@ interface AnalyticsDashboardProps {
 }
 
 export default function AnalyticsDashboard({ transactions, categories, accounts }: AnalyticsDashboardProps) {
-  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const COLORS = ['#818CF8', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#F472B6'];
 
   const monthlyStats = useMemo(() => {
     const months: Record<string, { income: number, expense: number }> = {};
@@ -101,12 +101,12 @@ export default function AnalyticsDashboard({ transactions, categories, accounts 
               <AreaChart data={monthlyStats}>
                 <defs>
                   <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#818CF8" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#818CF8" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#F87171" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#F87171" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#CBD5E120" />
@@ -116,8 +116,8 @@ export default function AnalyticsDashboard({ transactions, categories, accounts 
                   contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '16px', color: '#f8fafc' }}
                   itemStyle={{ fontWeight: 800, textTransform: 'uppercase', fontSize: '10px' }}
                 />
-                <Area type="monotone" dataKey="income" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorIncome)" name="Entradas" />
-                <Area type="monotone" dataKey="expense" stroke="#f43f5e" strokeWidth={4} fillOpacity={1} fill="url(#colorExpense)" name="Saídas" />
+                <Area type="monotone" dataKey="income" stroke="#818CF8" strokeWidth={4} fillOpacity={1} fill="url(#colorIncome)" name="Entradas" />
+                <Area type="monotone" dataKey="expense" stroke="#F87171" strokeWidth={4} fillOpacity={1} fill="url(#colorExpense)" name="Saídas" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
