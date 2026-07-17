@@ -220,6 +220,14 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Ajustamos o card fechado do pote no [Dashboard.tsx](file:///C:/Users/Everson/AppData/Local/Temp/components/Dashboard.tsx) (linha 471) para renderizar o **saldo acumulado real** do pote (`account.displayBalance`), igualando-o à visualização aberta do card.
   * O saldo exibido agora é uniforme e coerente em todos os estados do card (aberto ou fechado), somando exatamente para compor o *"Saldo Disponível"* global do cabeçalho e alinhado perfeitamente com a aba dedicada de *"Potes"* do menu.
 
+### 23. Correção de Coluna Faltante `color` na Tabela `pots`
+* **O Problema**: Potes cadastrados pelo aplicativo local não apareciam de fato na tabela `pots` no painel do Supabase, que permanecia vazia.
+* **A Causa**: A tabela `pots` no Supabase não possuía a coluna `color`. O aplicativo local envia a propriedade `color` (ex: `#4F46E5`) no JSON de cada pote na chamada `.upsert()`. Sem a coluna correspondente no banco, o Postgres remoto rejeitava a operação inteira com o erro `column "color" of relation "pots" does not exist`. E como o `ensureDefaultPots` falhava, o app revertia a inserção e exibia a lista vazia no reload (F5).
+* **A Solução**:
+  * **Alteração Estrutural**: Conectamos via Postgres e adicionamos a coluna `color TEXT` na tabela `public.pots` no Supabase remoto.
+  * **Semeador de Emergência**: Rodamos uma rotina direta de semeadura que inseriu com sucesso os três potes padrão ("Essencial", "Investimentos", "Lazer") atrelados ao seu ID de administrador no banco remoto, confirmando-os na hora no seu painel.
+  * **Alinhamento de Tipos**: Atualizamos a interface `Pot` no [types.ts](file:///C:/Users/Everson/AppData/Local/Temp/types.ts) para incluir formalmente a propriedade opcional `color?: string | null;`.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
