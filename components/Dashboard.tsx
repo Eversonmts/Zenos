@@ -715,10 +715,9 @@ export default function Dashboard({
           </div>
         );
       case 'budgets': {
-        if (!budgets || budgets.length === 0) return null;
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const topBudgets = budgets.slice(0, 3);
+        const topBudgets = budgets ? budgets.slice(0, 3) : [];
 
         return (
           <div key="budgets" onClick={() => onNavigate && onNavigate('budgets' as any)} className="cursor-pointer bg-white dark:bg-[#0a0c14] p-6 rounded-3xl border border-slate-200 dark:border-white/5 shadow-sm hover:border-indigo-500/30 transition-all">
@@ -728,30 +727,38 @@ export default function Dashboard({
               </h3>
               <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             </div>
-            <div className="space-y-4">
-              {topBudgets.map(b => {
-                const spent = transactions
-                  .filter(t => t.type === 'expense' && t.category_id === b.category_id && new Date(t.date_at) >= startOfMonth)
-                  .reduce((sum, t) => sum + Number(t.amount), 0);
-                const limitAmount = Number(b.limit_amount);
-                const percent = Math.min((spent / limitAmount) * 100, 100);
-                const isOver = spent > limitAmount;
-                return (
-                  <div key={b.id}>
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-xs font-bold text-[#212529] dark:text-white">{b.category_name}</span>
-                      <span className={`text-[10px] font-black ${isOver ? 'text-rose-500' : 'text-slate-500 dark:text-slate-400'}`}>{percent.toFixed(0)}%</span>
+            
+            {topBudgets.length === 0 ? (
+              <div className="text-center py-6">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-tight">Nenhum orçamento definido</p>
+                <p className="text-[9px] text-slate-400 uppercase mt-1">Defina limites mensais para economizar.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {topBudgets.map(b => {
+                  const spent = transactions
+                    .filter(t => t.type === 'expense' && t.category_id === b.category_id && new Date(t.date_at) >= startOfMonth)
+                    .reduce((sum, t) => sum + Number(t.amount), 0);
+                  const limitAmount = Number(b.limit_amount);
+                  const percent = Math.min((spent / limitAmount) * 100, 100);
+                  const isOver = spent > limitAmount;
+                  return (
+                    <div key={b.id}>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-xs font-bold text-[#212529] dark:text-white">{b.category_name}</span>
+                        <span className={`text-[10px] font-black ${isOver ? 'text-rose-500' : 'text-slate-500 dark:text-slate-400'}`}>{percent.toFixed(0)}%</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${isOver ? 'bg-rose-500' : percent > 80 ? 'bg-amber-500' : 'bg-indigo-500'}`} style={{ width: `${percent}%` }} />
+                      </div>
                     </div>
-                    <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${isOver ? 'bg-rose-500' : percent > 80 ? 'bg-amber-500' : 'bg-indigo-500'}`} style={{ width: `${percent}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-              {budgets.length > 3 && (
-                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest text-center pt-1">+{budgets.length - 3} outro(s)</p>
-              )}
-            </div>
+                  );
+                })}
+                {budgets.length > 3 && (
+                  <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest text-center pt-1">+{budgets.length - 3} outro(s)</p>
+                )}
+              </div>
+            )}
           </div>
         );
       }

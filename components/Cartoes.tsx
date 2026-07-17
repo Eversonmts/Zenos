@@ -50,7 +50,7 @@ export default function Cartoes({
       return;
     }
 
-    setEditingCard({ name: '', last_4_digits: '', limit: 0, closing_day: 5, due_day: 12, color: CARD_COLORS[cards.length % CARD_COLORS.length] });
+    setEditingCard({ name: '', last_4_digits: '', limit: 0, closing_day: '' as any, due_day: '' as any, color: CARD_COLORS[cards.length % CARD_COLORS.length] });
     setShowCardModal(true);
   };
 
@@ -72,8 +72,8 @@ export default function Cartoes({
         name: editingCard.name!,
         last_4_digits: editingCard.last_4_digits || '',
         limit: editingCard.limit || 0,
-        closing_day: editingCard.closing_day || 5,
-        due_day: editingCard.due_day || 12,
+        closing_day: Number(editingCard.closing_day) || 1,
+        due_day: Number(editingCard.due_day) || 1,
         color: editingCard.color || CARD_COLORS[0],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -148,6 +148,7 @@ export default function Cartoes({
                   <div className="text-right mr-2">
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Em aberto</p>
                     <p className="font-black text-rose-500">{formatCurrency(totalOpen)}</p>
+                    <p className="text-[9px] font-bold text-slate-400 mt-0.5">Disponível: <span className="text-emerald-500 font-extrabold">{formatCurrency(card.limit - totalOpen)}</span></p>
                   </div>
                   <button onClick={() => openEditCard(card)} className="p-2 text-slate-400 hover:text-indigo-500"><Edit2 className="w-4 h-4" /></button>
                   <button onClick={() => handleDeleteCard(card.id)} className="p-2 text-slate-400 hover:text-rose-500"><Trash2 className="w-4 h-4" /></button>
@@ -203,6 +204,41 @@ export default function Cartoes({
                       </div>
                     );
                   })}
+                  
+                  {/* Divisor */}
+                  <hr className="border-slate-200 dark:border-white/5 my-4" />
+                  
+                  {/* Histórico Corrido de Gastos */}
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest ml-1">Histórico de Gastos</h4>
+                    {(() => {
+                      const cardDebts = debts.filter(d => d.card_id === card.id);
+                      const sortedCardDebts = [...cardDebts].sort((a,b) => b.due_date.localeCompare(a.due_date));
+                      if (sortedCardDebts.length === 0) {
+                        return <p className="text-xs text-slate-400 dark:text-slate-550 italic py-2 ml-1">Nenhum gasto registrado neste cartão.</p>;
+                      }
+                      return (
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                          {sortedCardDebts.map(d => (
+                            <div key={d.id} className="flex justify-between items-center text-xs p-3 bg-slate-50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5">
+                              <div className="text-left font-bold">
+                                <p className="text-[#212529] dark:text-white">{d.description}</p>
+                                <p className="text-[9px] text-slate-400 font-bold uppercase mt-0.5">Vence em: {d.due_date ? new Date(d.due_date + 'T12:00:00').toLocaleDateString('pt-BR') : 'Indefinido'}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-black text-[#212529] dark:text-white">{formatCurrency(d.total_amount)}</span>
+                                {d.status === 'paid' ? (
+                                  <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[8px] font-black uppercase">Pago</span>
+                                ) : (
+                                  <span className="px-1.5 py-0.5 bg-rose-500/10 text-rose-500 rounded text-[8px] font-black uppercase">Aberto</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
               )}
             </div>
@@ -238,11 +274,35 @@ export default function Cartoes({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-[#4e545a] dark:text-slate-600 uppercase tracking-widest ml-1">Melhor dia de compra</label>
-                  <input required type="number" min="1" max="31" className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={editingCard.closing_day || ''} onChange={e => setEditingCard({ ...editingCard, closing_day: parseInt(e.target.value) || 1 })} />
+                  <input 
+                    required 
+                    type="text" 
+                    inputMode="numeric"
+                    maxLength={2} 
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" 
+                    value={editingCard.closing_day ?? ''} 
+                    onChange={e => {
+                      const cleaned = e.target.value.replace(/\D/g, '').slice(0, 2);
+                      const num = parseInt(cleaned);
+                      setEditingCard({ ...editingCard, closing_day: cleaned === '' ? undefined as any : num > 31 ? 31 : num });
+                    }} 
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-[#4e545a] dark:text-slate-600 uppercase tracking-widest ml-1">Vencimento</label>
-                  <input required type="number" min="1" max="31" className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" value={editingCard.due_day || ''} onChange={e => setEditingCard({ ...editingCard, due_day: parseInt(e.target.value) || 1 })} />
+                  <input 
+                    required 
+                    type="text" 
+                    inputMode="numeric"
+                    maxLength={2} 
+                    className="w-full px-5 py-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl text-[#212529] dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" 
+                    value={editingCard.due_day ?? ''} 
+                    onChange={e => {
+                      const cleaned = e.target.value.replace(/\D/g, '').slice(0, 2);
+                      const num = parseInt(cleaned);
+                      setEditingCard({ ...editingCard, due_day: cleaned === '' ? undefined as any : num > 31 ? 31 : num });
+                    }} 
+                  />
                 </div>
               </div>
 
