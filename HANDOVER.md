@@ -315,6 +315,20 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
     - Alteramos a cor dos textos e ícones inativos nos botões do menu inferior de `dark:text-slate-400 dark:hover:text-white` para `dark:text-white` (branco puro permanente), removendo o efeito indesejado de alteração de cor ao tocar no celular.
     - Alteramos a cor dos links inativos no menu da gaveta lateral (`App.tsx`) de `dark:text-slate-600` para `dark:text-white` (branco puro permanente). Os itens agora têm contraste visual máximo e leitura perfeita no tema escuro.
 
+### 33. Área de Download do Aplicativo (Android APK e Instruções de Instalação iOS)
+* **O Problema**: O usuário solicitou transformar o site em um aplicativo nativo empacotado em WebView e criar uma área de download responsiva no próprio site para instalar o aplicativo no Android e no iOS de forma prática.
+* **A Solução**:
+  * **Empacotamento e Download de APK (Android)**:
+    - O link do botão Android aponta para `/zenos.apk` para realizar o download direto e seguro do arquivo empacotado.
+    - Criamos um arquivo placeholder `public/zenos.apk` na raiz pública. O usuário deve gerar o APK usando ferramentas gratuitas de empacotamento web como o [PWABuilder](https://www.pwabuilder.com/) (da Microsoft) ou [WebIntoApp](https://www.webintoapp.com/) a partir da URL publicada do site dele na Vercel e simplesmente colar o arquivo `.apk` gerado na pasta `public` com o nome `zenos.apk`.
+  * **Instruções de Instalação (iOS)**:
+    - O botão iOS abre um modal amigável (alerta interativo) instruindo detalhadamente o passo a passo para o usuário adicionar o app à tela inicial do Safari:
+      1. Abrir o site no Safari.
+      2. Clicar no ícone de "Compartilhar".
+      3. Selecionar "Adicionar à Tela Inicial".
+  * **Aba de Download no Sistema**:
+    - Criamos e integramos a aba **Download App** no menu interno de Ajustes do Sistema (`Settings.tsx`) com os botões responsivos de Android e iOS no modo escuro/claro premium.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
