@@ -695,6 +695,18 @@ export default function App() {
       newEntries = Array.isArray(t) ? t : [t as Transaction];
     }
 
+    // Se for uma despesa (expense) e tiver account_id apontando para um pote virtual (ou seja, se a ID existir nos potes!)
+    // nós garantimos que pot_id receba esse valor para que o débito seja feito do pote correto!
+    newEntries = newEntries.map(tx => {
+      if (tx.type === 'expense' && !tx.pot_id && tx.account_id) {
+        const isPot = pots.some(p => p.id === tx.account_id);
+        if (isPot) {
+          return { ...tx, pot_id: tx.account_id, account_id: null };
+        }
+      }
+      return tx;
+    });
+
     // Monta a partir do ref (sempre atual), não da variável "transactions" da
     // closure - ela pode estar desatualizada em relação à última mudança
     // remota (outro dispositivo) ou a uma ação anterior no mesmo tick.
@@ -1404,7 +1416,7 @@ export default function App() {
               <Compromissos 
                 activeUserId={activeUser.id}
                 debts={debts} 
-                accounts={processedAccounts} 
+                accounts={processedPots} 
                 cards={cards}
                 transactions={transactions}
                 categories={categories}
@@ -1420,7 +1432,7 @@ export default function App() {
               <Cartoes
                 cards={cards}
                 debts={debts}
-                accounts={processedAccounts}
+                accounts={processedPots}
                 userId={activeUser.id}
                 onUpdateCards={(newCards) => updateAndSave(() => newCards, setCards, db.saveCards)}
                 onDeleteCard={(id) => {
@@ -1465,7 +1477,7 @@ export default function App() {
               <Goals 
                 activeUserId={activeUser.id}
                 goals={goals} 
-                accounts={processedAccounts}
+                accounts={processedPots}
                 transactions={transactions}
                 onAdd={(g) => updateAndSave((prev: Goal[]) => [...prev, g], setGoals, db.saveGoals)}
                 onUpdate={(newGoals) => updateAndSave(newGoals, setGoals, db.saveGoals)}
