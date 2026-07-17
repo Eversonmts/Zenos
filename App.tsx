@@ -511,7 +511,7 @@ export default function App() {
     { id: 'transactions', label: 'Finanças', icon: Receipt, section: 'FINANCEIRO' },
     { id: 'accounts' as any, label: 'Potes', icon: Archive, section: 'FINANCEIRO' },
     { id: 'goals', label: 'Metas', icon: Target, section: 'FINANCEIRO' },
-    { id: 'compromissos', label: 'Dívidas', icon: AlertCircle, section: 'FINANCEIRO' },
+    { id: 'compromissos', label: 'Compromissos', icon: AlertCircle, section: 'FINANCEIRO' },
     { id: 'cartoes' as any, label: 'Cartões', icon: CreditCardIcon, section: 'FINANCEIRO' },
     { id: 'budgets' as any, label: 'Orçamentos', icon: PieChart, section: 'FINANCEIRO' },
     { id: 'categories' as any, label: 'Categorias', icon: Tag, section: 'FINANCEIRO' },
