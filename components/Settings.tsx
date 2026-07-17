@@ -39,7 +39,7 @@ export default function Settings({
   initialTab = 'categories',
   activePlan
 }: SettingsProps) {
-  const [activeTab, setActiveTab] = useState<'categories' | 'appearance' | 'subscription' | 'profile' | 'payments' | 'database' | 'security' | 'system'>(initialTab as any);
+  const [activeTab, setActiveTab] = useState<'categories' | 'appearance' | 'subscription' | 'profile' | 'payments' | 'database' | 'security' | 'system' | 'download'>(initialTab as any);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatType, setNewCatType] = useState<'income' | 'expense' | 'debt'>('expense');
@@ -377,6 +377,19 @@ export default function Settings({
             </div>
           </button>
           )}
+
+          <button 
+            onClick={() => setActiveTab('download' as any)}
+            className={`w-full flex items-center gap-4 p-4 rounded-3xl transition-all ${activeTab === 'download' ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'bg-white dark:bg-[#0a0c14] text-slate-600 hover:bg-slate-50 dark:hover:bg-white/5 border border-slate-200 dark:border-white/5'}`}
+          >
+            <div className={`p-2 rounded-xl ${activeTab === 'download' ? 'bg-white/20' : 'bg-purple-50 dark:bg-purple-500/10'}`}>
+              <Download className={`w-5 h-5 ${activeTab === 'download' ? 'text-white' : 'text-purple-500'}`} />
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-black uppercase tracking-widest">Download App</p>
+              <p className={`text-[9px] font-bold ${activeTab === 'download' ? 'text-indigo-100' : 'text-slate-400'}`}>Instalar aplicativo</p>
+            </div>
+          </button>
         </div>
 
         {/* Conteúdo Principal */}
@@ -1081,7 +1094,7 @@ export default function Settings({
                       
                       <div className="md:col-span-2 space-y-2">
                         <label className="text-[10px] font-black text-slate-650 uppercase tracking-widest font-mono">Modificações Implementadas</label>
-                        <input
+                       <input
                           type="text"
                           placeholder="Ex: Novas melhorias de layout no iOS e ajustes finos."
                           className="w-full px-4 py-3 bg-white dark:bg-[#0c0f1d] border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-505 text-xs font-medium"
@@ -1141,6 +1154,54 @@ export default function Settings({
                 )}
               </div>
              )}
+
+            {activeTab === 'download' && (
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="p-4 bg-purple-50 dark:bg-purple-500/10 rounded-2xl">
+                    <Download className="w-8 h-8 text-purple-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Baixe o Aplicativo</h3>
+                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Instale o ZenOS no seu dispositivo móvel</p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-[#0c0f1e] p-8 rounded-[2.5rem] border border-slate-200 dark:border-white/5 text-center space-y-6 max-w-lg mx-auto shadow-sm">
+                  <h4 className="text-sm font-black text-[#212529] dark:text-white uppercase tracking-wider font-bold">Acesse de Qualquer Lugar</h4>
+                  <p className="text-xs text-slate-500 font-bold leading-relaxed max-w-sm mx-auto">
+                    Escolha a plataforma abaixo para baixar o arquivo do aplicativo ou ver as instruções de instalação no seu celular.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center">
+                    {/* Botão Android */}
+                    <a 
+                      href="/zenos.apk" 
+                      download="zenos.apk"
+                      className="flex items-center justify-center gap-3 px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all outline-none cursor-pointer"
+                    >
+                      <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M17.523 15.3l1.815 3.144a.9.9 0 1 1-1.558.9l-1.83-3.17a9.23 9.23 0 0 1-7.899 0l-1.83 3.17a.9.9 0 0 1-1.558-.9l1.815-3.144A9.22 9.22 0 0 1 2 7.7a9.14 9.14 0 0 1 .135-1.565h19.73A9.14 9.14 0 0 1 22 7.7a9.22 9.22 0 0 1-4.477 7.6zM7 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm10 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                      </svg>
+                      Instalar Android
+                    </a>
+
+                    {/* Botão iOS */}
+                    <button 
+                      onClick={() => {
+                        alert("📲 Como instalar no iOS (Safari):\n\n1. Abra este site no navegador Safari do seu iPhone.\n2. Toque no ícone de 'Compartilhar' (o quadrado com uma seta para cima na barra inferior).\n3. Deslize a lista para baixo e toque em 'Adicionar à Tela Inicial'.\n4. Toque em 'Adicionar' no canto superior direito.\n\nPronto! O aplicativo será instalado com ícone e tela cheia nativos.");
+                      }}
+                      className="flex items-center justify-center gap-3 px-8 py-4 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-white/10 active:scale-95 transition-all outline-none cursor-pointer"
+                    >
+                      <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.21.67-2.93 1.49-.62.69-1.16 1.84-1.01 2.96 1.12.09 2.27-.57 2.95-1.39z"/>
+                      </svg>
+                      Instalar iOS
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
          </div>
         </div>
       </div>
