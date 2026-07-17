@@ -252,6 +252,15 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * O array de potes agora é mapeado de forma a enviar **apenas** os campos correspondentes e aceitos fisicamente pela tabela `pots` no Postgres remoto.
   * A criação, alteração ou remoção de potes feita pelo aplicativo local agora é gravada e refletida no banco de dados do Supabase instantaneamente e em tempo real!
 
+### 27. Validação de Saúde das Tabelas e Resolução do Trigger de Novos Usuários
+* **O Problema**:
+  1. Para garantir o funcionamento perfeito do banco de dados remoto do Supabase, rodamos uma rotina automatizada de validação em todas as 9 tabelas.
+  2. O teste de integridade na tabela `settings` acusou a ausência da coluna `is_sync_enabled`. 
+* **A Causa**: A tabela `settings` no Supabase remoto do usuário foi criada sem a coluna `is_sync_enabled`. No entanto, na função PL/pgSQL do trigger de novos usuários (`handle_new_user`), o banco tenta inserir `is_sync_enabled = true` ao criar uma nova conta. Essa divergência fazia a inserção do trigger falhar e crashar totalmente o fluxo de criação de novos usuários no Supabase Auth.
+* **A Solução**:
+  * **Ajuste Estrutural**: Conectamos via Postgres e adicionamos a coluna `is_sync_enabled BOOLEAN DEFAULT true` na tabela `public.settings` no Supabase remoto.
+  * **Saúde Geral Atestada**: Reexecutamos o teste de saúde em todas as tabelas (`profiles`, `categories`, `subcategories`, `pots`, `transactions`, `transaction_allocations`, `goals`, `debts`, `settings`) e todas retornaram **100% de sucesso**. O banco remoto está perfeito!
+
 ---
 
 ## 📌 Guia de Deploy Vercel
