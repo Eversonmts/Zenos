@@ -358,6 +358,12 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
     - Compactamos as caixas internas de A Pagar/Pago de `p-3 rounded-2xl` para `p-2.5 rounded-xl` e fontes de `text-lg` para `text-sm md:text-lg`.
     - Enxugamos os botões de ação e seus ícones para ocupar muito menos espaço no mobile.
 
+### 36. Correção e Habilitação da Escala de Tamanho dos Menus em Dispositivos Móveis
+* **O Problema**: A função de configuração de "Tamanho dos Menus" em Ajustes do Sistema não surtia efeito em celulares/dispositivos móveis, alterando apenas em telas de computadores desktop. Além disso, o botão de visualização em Ajustes perdia a sincronia ao atualizar.
+* **A Solução**:
+  * **Habilitação Mobile**: Localizamos e removemos o bloqueio de consulta de mídia (`window.matchMedia('(min-width: 1024px)').matches`) no hook `useEffect` do [App.tsx](file:///C:/Users/Everson/AppData/Local/Temp/App.tsx) que forçava a escala do font-size raiz em `100%` no mobile. Agora a escala de visualização e tamanho do menu (`xs: 70%`, `sm: 85%`, `md: 100%`, `lg: 115%`) funciona em qualquer celular de forma responsiva.
+  * **Sincronização Reativa**: Adicionamos um hook `useEffect` no [Settings.tsx](file:///C:/Users/Everson/AppData/Local/Temp/components/Settings.tsx) monitorando `profile?.menu_size` para atualizar o estado provisório `tempMenuSize` de forma instantânea sempre que a alteração for salva, garantindo precisão de botões e estado visual limpo.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
