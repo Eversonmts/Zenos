@@ -744,8 +744,13 @@ export default function Dashboard({
                   const isOver = spent > limitAmount;
                   return (
                     <div key={b.id}>
-                      <div className="flex justify-between items-center mb-1.5">
-                        <span className="text-xs font-bold text-[#212529] dark:text-white">{b.category_name}</span>
+                      <div className="flex justify-between items-end mb-1.5">
+                        <div className="text-left font-bold">
+                          <span className="text-xs font-bold text-[#212529] dark:text-white">{b.category_name}</span>
+                          <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">
+                            Gasto: <span className="font-extrabold text-[#212529] dark:text-slate-350">R$ {formatCurrency(spent)}</span> de R$ {formatCurrency(limitAmount)}
+                          </p>
+                        </div>
                         <span className={`text-[10px] font-black ${isOver ? 'text-rose-500' : 'text-slate-500 dark:text-slate-400'}`}>{percent.toFixed(0)}%</span>
                       </div>
                       <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">

@@ -775,14 +775,24 @@ export const db = {
   saveBudgets: async (userId: string, budgets: any[]) => {
     saveLocalData(userId, { budgets });
     if (isTestUser(userId)) return;
-    const { error } = await supabase.from('budgets').upsert(budgets.map(b => ({ ...b, user_id: userId })));
+    const { error } = await supabase.from('budgets').upsert(budgets.map(b => ({
+      ...b,
+      user_id: userId,
+      created_at: b.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })));
     if (error) { console.error("Failed to save budgets:", error); throw error; }
   },
 
   saveCalendar: async (userId: string, events: any[]) => {
     saveLocalData(userId, { calendar: events });
     if (isTestUser(userId)) return;
-    const { error } = await supabase.from('calendar').upsert(events.map(e => ({ ...e, user_id: userId })));
+    const { error } = await supabase.from('calendar').upsert(events.map(e => ({
+      ...e,
+      user_id: userId,
+      created_at: e.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })));
     if (error) { console.error("Failed to save calendar events:", error); throw error; }
   },
 
