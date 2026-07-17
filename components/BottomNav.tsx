@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'motion/react';
 import { 
   Home, 
@@ -29,20 +29,32 @@ interface BottomNavProps {
 export default function BottomNav({ currentView, onNavigate, onQuickAction, onToggleSidebar, containerRef, txFilter, isUpdateAvailable }: BottomNavProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [isFabOpen, setIsFabOpen] = useState(false);
-  const { scrollY } = useScroll({
-    container: containerRef || undefined
-  });
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollYRef = useRef(0);
 
-  useMotionValueEvent(scrollY, "change", (latest) => {
-    const direction = latest > lastScrollY ? "down" : "up";
-    if (latest > 50 && direction === "down" && isVisible && !isFabOpen) {
-      setIsVisible(false);
-    } else if (direction === "up" && !isVisible) {
-      setIsVisible(true);
-    }
-    setLastScrollY(latest);
-  });
+  useEffect(() => {
+    const container = containerRef?.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const currentScroll = container.scrollTop;
+      const direction = currentScroll > lastScrollYRef.current ? "down" : "up";
+
+      // Só oculta se scroll maior que 80px (evita esconder em pequenas trepidações)
+      if (currentScroll > 80 && direction === "down") {
+        setIsVisible(false);
+        setIsFabOpen(false); // Fecha o FAB se rolar para baixo
+      } else if (direction === "up") {
+        setIsVisible(true);
+      }
+
+      lastScrollYRef.current = currentScroll;
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [containerRef]);
 
   const quickActions = [
     { id: 'transfer', label: 'Transferência', icon: Repeat, color: 'bg-white', iconColor: 'text-indigo-600', position: { bottom: 100, left: '18%' } },
