@@ -364,6 +364,15 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Habilitação Mobile**: Localizamos e removemos o bloqueio de consulta de mídia (`window.matchMedia('(min-width: 1024px)').matches`) no hook `useEffect` do [App.tsx](file:///C:/Users/Everson/AppData/Local/Temp/App.tsx) que forçava a escala do font-size raiz em `100%` no mobile. Agora a escala de visualização e tamanho do menu (`xs: 70%`, `sm: 85%`, `md: 100%`, `lg: 115%`) funciona em qualquer celular de forma responsiva.
   * **Sincronização Reativa**: Adicionamos um hook `useEffect` no [Settings.tsx](file:///C:/Users/Everson/AppData/Local/Temp/components/Settings.tsx) monitorando `profile?.menu_size` para atualizar o estado provisório `tempMenuSize` de forma instantânea sempre que a alteração for salva, garantindo precisão de botões e estado visual limpo.
 
+### 37. Sincronização e Correção de Integridade dos Compromissos Financeiros (Tabela debts)
+* **O Problema**: Os Compromissos Financeiros (Contas/Dívidas da tabela `debts`) criados no app eram salvos localmente, mas a sincronização com o Supabase remoto falhava, fazendo com que as informações fossem perdidas e sumissem logo em seguida.
+* **A Causa**:
+  1. A tabela `public.debts` no banco remoto não possuía as colunas criadas no frontend: `card_id` (associação de faturas), `installment_number` (parcelas), `category_id` e `subcategory_id`. O payload de upsert continha esses campos e era rejeitado pelo Postgres por colunas inválidas.
+  2. As colunas de auditoria `created_at` e `updated_at` na tabela `debts` estavam sem valores padrão (`DEFAULT`) configurados e eram exigidas como `NOT NULL`, falhando quando novos compromissos eram criados.
+* **A Solução**:
+  - **Alteração DDL no Supabase**: Conectamos ao banco Postgres remoto e criamos fisicamente as quatro colunas ausentes (`card_id` como FK de cards, `category_id` como FK de categories, `subcategory_id` como FK de subcategories e `installment_number` como integer). Definimos também o valor padrão de auditoria (`DEFAULT now()`) para `created_at` e `updated_at`.
+  - **Injeção de Auditoria no Frontend**: Atualizamos o método `saveDebts` em [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) para injetar e mapear datas de auditoria de forma consistente no payload do Supabase.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
