@@ -665,7 +665,21 @@ export const db = {
   savePots: async (userId: string, pots: Pot[]) => {
     saveLocalData(userId, { pots });
     if (isTestUser(userId)) return;
-    const { error } = await supabase.from('pots').upsert(pots.map(p => ({ ...p, user_id: userId })));
+
+    // Sanitização estrita: envia apenas as colunas reais da tabela pots no Supabase
+    const cleanPots = pots.map(p => ({
+      id: p.id,
+      user_id: userId,
+      name: p.name,
+      percentage: Number(p.percentage || 0),
+      current_balance: Number(p.current_balance || 0),
+      color: p.color || null,
+      created_at: p.created_at || new Date().toISOString(),
+      updated_at: p.updated_at || new Date().toISOString(),
+      deleted_at: p.deleted_at || null
+    }));
+
+    const { error } = await supabase.from('pots').upsert(cleanPots);
     if (error) { console.error("Failed to save pots:", error); throw error; }
   },
 
