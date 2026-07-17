@@ -329,6 +329,19 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Aba de Download no Sistema**:
     - Criamos e integramos a aba **Download App** no menu interno de Ajustes do Sistema (`Settings.tsx`) com os botões responsivos de Android e iOS no modo escuro/claro premium.
 
+### 34. Sincronização de Compromissos e Detalhamento Monetário de Orçamentos no Dashboard
+* **O Problema**:
+  1. O download do arquivo Android dava erro de análise ao instalar porque ele baixava o arquivo `public/zenos.apk` que criamos apenas como placeholder (com 100 bytes).
+  2. Os compromissos (calendário) criados no app não eram salvos permanentemente no Supabase remoto.
+  3. O card de Orçamentos na Visão Geral (Dashboard) exibia apenas a porcentagem do progresso de gastos de cada categoria, sem os valores reais em dinheiro.
+* **A Solução**:
+  * **Exclusão do Erro de Análise do APK**: Explicamos que o erro de análise ocorre porque o navegador tentou instalar o arquivo de texto placeholder de 100 bytes. O usuário precisa colar o APK real compilado via PWABuilder ou WebIntoApp com o nome `zenos.apk` na pasta `/public` do projeto.
+  * **Sincronização de Compromissos (Calendário)**: 
+    - Corrigimos os métodos `saveCalendar` e `saveBudgets` no [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) para injetarem datas de auditoria `created_at` e `updated_at` de forma automática nos payloads do `.upsert()`.
+    - Ajustamos a DDL no Supabase remoto para definir defaults de data (`now()`) nas tabelas `public.calendar` e `public.budgets`, resolvendo todas as falhas de inserção e persistindo 100% dos compromissos nas atualizações de página.
+  * **Detalhamento de Orçamentos no Dashboard**:
+    - Atualizamos o card de Orçamentos no [Dashboard.tsx](file:///C:/Users/Everson/AppData/Local/Temp/components/Dashboard.tsx) para exibir textualmente o valor total do orçamento da categoria e o quanto já foi gasto dela (exemplo: `Gasto: R$ 800,00 de R$ 1.000,00`), alinhado abaixo do nome da categoria com a porcentagem correspondente ao lado.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
