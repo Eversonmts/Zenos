@@ -228,6 +228,14 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Semeador de Emergência**: Rodamos uma rotina direta de semeadura que inseriu com sucesso os três potes padrão ("Essencial", "Investimentos", "Lazer") atrelados ao seu ID de administrador no banco remoto, confirmando-os na hora no seu painel.
   * **Alinhamento de Tipos**: Atualizamos a interface `Pot` no [types.ts](file:///C:/Users/Everson/AppData/Local/Temp/types.ts) para incluir formalmente a propriedade opcional `color?: string | null;`.
 
+### 24. Correção e Reprocessamento do Trigger de Rateio Automático nos Potes
+* **O Problema**: Aportes e receitas (como a receita de R$ 1.000,00 lançada pelo usuário) não atualizavam os saldos físicos dos potes no Supabase e nem compunham o *"Saldo Disponível"* global no cabeçalho do Dashboard, que ficava zerado (`R$ 0,00`).
+* **A Causa**: A função PL/pgSQL do trigger de rateio automático (`handle_auto_revenue_apportionment`) exigia a condição `NEW.account_id IS NULL` para processar a receita. No entanto, no fluxo de negócios atual, todas as transações lançadas pelo formulário exigem a seleção de uma conta física operacional (`account_id` preenchido). Por conta dessa divergência, o trigger não era disparado, as frações de receitas não eram geradas na tabela `transaction_allocations` e os saldos físicos de potes permaneciam zerados.
+* **A Solução**:
+  * **Correção do Trigger**: Alteramos a função no Postgres do Supabase remoto para remover a exigência `AND NEW.account_id IS NULL`, permitindo que qualquer receita de status `"Realizado"` seja rateada automaticamente nos potes.
+  * **Reprocessamento Retroativo**: Desenvolvemos e rodamos uma rotina que leu as receitas cadastradas do usuário administrador, efetuou o rateio retroativo e atualizou os saldos na tabela `pots`.
+  * Como resultado, os saldos físicos dos seus potes padrão (`Essencial`, `Investimentos` e `Lazer`) foram instantaneamente atualizados no Supabase de acordo com o rateio de 50%, 30% e 20% das receitas cadastradas.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
