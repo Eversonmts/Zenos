@@ -246,13 +246,6 @@ export default function App() {
   }, [simulatedUser?.id, user?.id]);
 
   useEffect(() => {
-    // Só aplica escala de fontSize em telas desktop (>=1024px).
-    // Em mobile, fontSize fixo em 100% para não causar overflow.
-    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-    if (!isDesktop) {
-      document.documentElement.style.fontSize = '100%';
-      return;
-    }
     let sizePercent = '100%';
     if (menuSize === 'xs') {
       sizePercent = '70%'; // Muito Pequena: 30% menor que a normal

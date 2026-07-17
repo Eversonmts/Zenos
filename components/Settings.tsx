@@ -235,6 +235,12 @@ export default function Settings({
 
   const [tempMenuSize, setTempMenuSize] = useState<Profile['menu_size']>(profile.menu_size || 'md');
 
+  useEffect(() => {
+    if (profile?.menu_size) {
+      setTempMenuSize(profile.menu_size);
+    }
+  }, [profile?.menu_size]);
+
   const handleSaveAppearance = () => {
     onUpdateProfile({ ...profile, menu_size: tempMenuSize });
     showToast('Aparência atualizada!', 'success');
