@@ -102,6 +102,7 @@ export interface Pot {
   name: string;
   percentage: number;
   current_balance: number;
+  color?: string | null;
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
