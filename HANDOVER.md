@@ -244,6 +244,14 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Sempre que ocorrer um lançamento, edição ou exclusão de uma transação do tipo `income`, o aplicativo aguarda 800ms (tempo para o trigger no Postgres comitar) e executa automaticamente uma busca limpa na base (`loadUserData(activeUser.id, true)`).
   * Com isso, o saldo dos potes e o saldo disponível global agora atualizam de forma instantânea e totalmente automática na tela, sem necessidade de recarga ou clique manual por parte do usuário!
 
+### 26. Sanitização Estrita de Potes para Persistência em Tempo Real
+* **O Problema**: A criação ou alteração de potes feita pela tela do aplicativo local não era salva de forma alguma na tabela `pots` no painel do Supabase.
+* **A Causa**: No frontend, o formulário de potes (`Potes.tsx`) reutiliza propriedades herdadas das contas bancárias (`Account`), gerando objetos que contêm campos extras como `balance_initial`, `type` e `is_active`. Quando a função `savePots` realizava o `.upsert()` no Supabase com o objeto bruto, o Postgres remoto rejeitava a operação por erro de coluna inexistente (por exemplo, `column "balance_initial" of relation "pots" does not exist`).
+* **A Solução**:
+  * Implementamos a sanitização estrita de colunas no `savePots` dentro de [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) (linha 665).
+  * O array de potes agora é mapeado de forma a enviar **apenas** os campos correspondentes e aceitos fisicamente pela tabela `pots` no Postgres remoto.
+  * A criação, alteração ou remoção de potes feita pelo aplicativo local agora é gravada e refletida no banco de dados do Supabase instantaneamente e em tempo real!
+
 ---
 
 ## 📌 Guia de Deploy Vercel
