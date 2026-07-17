@@ -236,6 +236,14 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Reprocessamento Retroativo**: Desenvolvemos e rodamos uma rotina que leu as receitas cadastradas do usuário administrador, efetuou o rateio retroativo e atualizou os saldos na tabela `pots`.
   * Como resultado, os saldos físicos dos seus potes padrão (`Essencial`, `Investimentos` e `Lazer`) foram instantaneamente atualizados no Supabase de acordo com o rateio de 50%, 30% e 20% das receitas cadastradas.
 
+### 25. Otimização de Recarga Assíncrona para Triggers de Receita
+* **O Problema**: Após adicionar, editar ou excluir um lançamento de receita, os novos valores do rateio e os saldos dos potes só apareciam atualizados na tela se o usuário clicasse para recarregar o navegador ou atualizar a página manualmente.
+* **A Causa**: Quando o aplicativo salva uma receita no Supabase, a inserção é síncrona do ponto de vista do React. Contudo, a geração das alocações e o incremento dos saldos dos potes ocorrem via trigger (assincronamente do ponto de vista do React) no Postgres remoto. O React local não conhecia essas mudanças automáticas. E como havia uma trava de 3.5 segundos para ignorar eventos do Supabase Realtime no mesmo dispositivo (para fins de desempenho e concorrência), a atualização automática via Postgres CDC era bloqueada.
+* **A Solução**:
+  * Adicionamos uma rotina no [App.tsx](file:///C:/Users/Everson/AppData/Local/Temp/App.tsx) dentro de `handleAddTransaction` (linha 735), `onDelete` (linha 1370) e `onEdit` (linha 1385).
+  * Sempre que ocorrer um lançamento, edição ou exclusão de uma transação do tipo `income`, o aplicativo aguarda 800ms (tempo para o trigger no Postgres comitar) e executa automaticamente uma busca limpa na base (`loadUserData(activeUser.id, true)`).
+  * Com isso, o saldo dos potes e o saldo disponível global agora atualizam de forma instantânea e totalmente automática na tela, sem necessidade de recarga ou clique manual por parte do usuário!
+
 ---
 
 ## 📌 Guia de Deploy Vercel
