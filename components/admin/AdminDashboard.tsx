@@ -1039,10 +1039,17 @@ export default function AdminDashboard({ user, showToast, onBack, onSimulateUser
                           </span>
                         </div>
                         <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-bold">{ticket.description}</p>
+                        {ticket.image_url && (
+                          <div className="mt-2">
+                            <a href={ticket.image_url} target="_blank" rel="noopener noreferrer" className="inline-block max-w-xs rounded-lg overflow-hidden border border-slate-200 dark:border-white/5 hover:opacity-90 transition-opacity">
+                              <img src={ticket.image_url} alt="Print do suporte" className="max-h-32 object-contain" />
+                            </a>
+                          </div>
+                        )}
                         
                         <div className="flex justify-between items-center pt-2 border-t border-slate-200/50 dark:border-white/5">
                           <span className="text-[9px] text-slate-400">{new Date(ticket.created_at).toLocaleString()}</span>
-                          {ticket.status === 'open' ? (
+                          {ticket.status === 'open' || ticket.status === 'Pendente' || ticket.status === 'Em Andamento' ? (
                             <button 
                               onClick={() => handleResolveTicket(ticket.id)}
                               className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-wider rounded-lg hover:bg-emerald-500/20 transition-all"

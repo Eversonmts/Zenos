@@ -308,7 +308,8 @@ export type AppView =
   | 'advisor'
   | 'settings' 
   | 'admin'
-  | 'shopping_list';
+  | 'shopping_list'
+  | 'support';
 
 export interface DashboardLayoutItem {
   id: string;
@@ -337,6 +338,7 @@ export interface FinancialData {
   budgets: Budget[];
   settings: Settings[];
   shopping_list: ShoppingItem[];
+  support_tickets?: SupportTicket[];
 }
 
 export interface AdminSettings {
@@ -391,10 +393,12 @@ export interface UserUsageQuota {
 export interface SupportTicket {
   id: string;
   user_id: string;
-  subject: string;
-  description: string;
-  status: 'open' | 'resolved' | 'closed';
-  priority: 'high' | 'normal' | 'low';
+  subject?: string;
+  description?: string;
+  message?: string;
+  image_url?: string | null;
+  status: 'open' | 'resolved' | 'closed' | 'Pendente' | 'Em Andamento' | 'Resolvido' | 'Fechado';
+  priority?: 'high' | 'normal' | 'low';
   created_at: string;
   updated_at: string;
   user_email?: string;
@@ -419,4 +423,6 @@ export interface ShoppingItem {
   created_at: string;
   updated_at: string;
 }
+
+
 

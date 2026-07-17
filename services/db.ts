@@ -33,7 +33,7 @@ const setSyncStatus = (status: SyncStatus) => {
 // immediately instead of waiting for the next manual/background refresh.
 const REALTIME_TABLES = [
   'accounts', 'transactions', 'categories', 'subcategories', 'goals', 'debts',
-  'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards'
+  'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards', 'support_tickets'
   // NOTE: transaction_allocations intentionally excluded - it has no user_id
   // column to filter on server-side, so subscribing to it would fire for
   // EVERY user's changes, not just this one. A transaction insert/update
@@ -111,7 +111,8 @@ const saveLocalData = (userId: string, data: Partial<FinancialData>) => {
       budgets: [],
       settings: [],
       shopping_list: [],
-      pots: []
+      pots: [],
+      support_tickets: []
     };
     const updated = { ...current, ...data };
     localStorage.setItem(LOCAL_STORAGE_KEY + userId, JSON.stringify(updated));
@@ -806,6 +807,21 @@ export const db = {
     if (error) { console.error("Failed to save transaction allocations:", error); throw error; }
   },
 
+  saveSupportTickets: async (userId: string, tickets: any[]) => {
+    saveLocalData(userId, { support_tickets: tickets } as any);
+    if (isTestUser(userId)) return;
+    const { error } = await supabase.from('support_tickets').upsert(tickets.map(t => ({
+      id: t.id,
+      user_id: userId,
+      message: t.message,
+      image_url: t.image_url || null,
+      status: t.status,
+      created_at: t.created_at || new Date().toISOString(),
+      updated_at: t.updated_at || new Date().toISOString()
+    })));
+    if (error) { console.error("Failed to save support tickets:", error); throw error; }
+  },
+
   // --- SYSTEM ADMIN ---
   admin: {
     logs: {
@@ -837,7 +853,7 @@ export const db = {
 
 // Fetches every user-owned table from Supabase in parallel.
 async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
-  const tables = ['categories', 'subcategories', 'accounts', 'pots', 'transactions', 'goals', 'debts', 'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards', 'shopping_list' as any] as const;
+  const tables = ['categories', 'subcategories', 'accounts', 'pots', 'transactions', 'goals', 'debts', 'settings', 'tasks', 'notes', 'journal', 'calendar', 'budgets', 'cards', 'shopping_list' as any, 'support_tickets' as any] as const;
 
   const fetchPromises = tables.map(async (table) => {
     let query = supabase.from(table).select('*').eq('user_id', userId);
@@ -912,5 +928,6 @@ async function fetchAllFromSupabase(userId: string): Promise<FinancialData> {
     budgets: byTable.budgets as any[],
     cards: byTable.cards as any[],
     shopping_list: (byTable.shopping_list || []) as any[],
+    support_tickets: (byTable.support_tickets || []) as any[],
   };
 }

@@ -3,13 +3,14 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, Receipt, Target, BrainCircuit, Menu, X, Archive, 
   AlertCircle, Plus, Settings as SettingsIcon, Camera, Mic, Loader2, StopCircle, LogOut, Shield, Wallet, Lock, Crown, Check, CreditCard as CreditCardIcon, ShoppingBag, Activity, ArrowUpCircle, ArrowDownCircle, Eye, Fingerprint,
-  BarChart2, CheckSquare, StickyNote, Book, Calendar as CalendarIcon, MessageSquare, PieChart, Tag, ShoppingCart
+  BarChart2, CheckSquare, StickyNote, Book, Calendar as CalendarIcon, MessageSquare, PieChart, Tag, ShoppingCart, LifeBuoy
 } from 'lucide-react';
-import { AppView, Transaction, Account, Pot, Debt, Goal, Category, Subcategory, Profile, Plan, Settings as SettingsType, FinancialData, Subscription, Task, Note, JournalEntry, CalendarEvent, Budget, TransactionAllocation, CreditCard, ShoppingItem } from './types';
+import { AppView, Transaction, Account, Pot, Debt, Goal, Category, Subcategory, Profile, Plan, Settings as SettingsType, FinancialData, Subscription, Task, Note, JournalEntry, CalendarEvent, Budget, TransactionAllocation, CreditCard, ShoppingItem, SupportTicket } from './types';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import Compromissos from './components/Compromissos';
 import Potes from './components/Potes';
+import Support from './components/Support';
 import Goals from './components/Goals';
 import InstallPrompt from './components/InstallPrompt';
 import { initPwaInstallListener } from './services/pwaInstall';
@@ -122,6 +123,7 @@ export default function App() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [settings, setSettings] = useState<SettingsType[]>([]);
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
 
   // States for Paywall & Fab
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -399,6 +401,7 @@ export default function App() {
         setEvents(data.calendar || []);
         setBudgets(data.budgets || []);
         setShoppingList(data.shopping_list || []);
+        setSupportTickets(data.support_tickets || []);
         
         // Load plans
         const plansList = await db.admin.plans.list();
@@ -526,6 +529,7 @@ export default function App() {
     { id: 'shopping_list' as any, label: 'Lista de Compras', icon: ShoppingCart, section: 'PRODUTIVIDADE' },
     { id: 'analytics', label: 'Análise', icon: BarChart2, section: 'INTELIGÊNCIA' },
     { id: 'advisor', label: 'Zenos IA', icon: BrainCircuit, section: 'INTELIGÊNCIA' },
+    { id: 'support', label: 'Suporte', icon: LifeBuoy, section: 'SISTEMA' },
     { id: 'settings', label: 'Ajustes', icon: SettingsIcon, section: 'SISTEMA' },
     { id: 'admin', label: 'Admin', icon: Shield, section: 'SISTEMA', adminOnly: true },
   ];
@@ -581,6 +585,24 @@ export default function App() {
 
   const handleAddTask = (t: Task) => {
     updateAndSave((prev: Task[]) => [...prev, t], setTasks, db.saveTasks);
+  };
+
+  const handleAddSupportTicket = async (message: string, imageUrl: string | null) => {
+    if (!activeUser) return;
+    const newTicket: SupportTicket = {
+      id: crypto.randomUUID(),
+      user_id: activeUser.id,
+      message,
+      image_url: imageUrl,
+      status: 'Pendente',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    await updateAndSave(
+      (prev: SupportTicket[]) => [...prev, newTicket],
+      setSupportTickets,
+      db.saveSupportTickets
+    );
   };
 
   const handleAddShoppingItem = (name: string, quantity?: string) => {
@@ -1608,6 +1630,14 @@ export default function App() {
                     showToast("Usuário não encontrado para simulação", "error");
                   }
                 }}
+              />
+            )}
+            {view === 'support' && activeUser && (
+              <Support
+                activeUserId={activeUser.id}
+                tickets={supportTickets}
+                onAddTicket={handleAddSupportTicket}
+                showToast={showToast}
               />
             )}
           </div>

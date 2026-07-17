@@ -818,45 +818,42 @@ export const adminService = {
   },
 
   // --- SUPPORT TICKETS (Mapeia a tabela REAL tasks de suporte ou o localStorage) ---
-  listSupportTickets: async (performerId?: string): Promise<SupportTicket[]> => {
+  listSupportTickets: async (performerId?: string): Promise<any[]> => {
     if (isTestUser(performerId)) {
       return ensureSandboxTickets();
     }
 
     try {
-      const { data, error } = await supabase.from('support_tickets').select('*').order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .select(`
+          *,
+          profiles:user_id (
+            email,
+            full_name
+          )
+        `)
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
-      return (data || []) as SupportTicket[];
+
+      return (data || []).map((t: any) => ({
+        id: t.id,
+        user_id: t.user_id,
+        subject: 'Chamado de Suporte',
+        description: t.message,
+        message: t.message,
+        image_url: t.image_url,
+        status: t.status,
+        created_at: t.created_at,
+        updated_at: t.updated_at,
+        user_email: t.profiles?.email || 'usuario@example.com',
+        user_name: t.profiles?.full_name || 'Usuário ZenOS'
+      }));
     } catch (e) {
-      // Fallback integrado: busca tarefas reais (tasks) marcadas com categoria 'Suporte' ou prioridade 'high'
-      try {
-        const { data: tasks } = await supabase.from('tasks').select('*').order('created_at', { ascending: false }).limit(20);
-        const { data: profiles } = await supabase.from('profiles').select('id, email, full_name');
-        
-        if (tasks) {
-          return tasks.map(t => {
-            const userProfile = profiles?.find(p => p.id === t.user_id);
-            return {
-              id: t.id,
-              user_id: t.user_id,
-              subject: t.title,
-              description: t.description || 'Nenhuma descrição fornecida',
-              status: t.status === 'completed' ? 'resolved' : 'open',
-              priority: t.priority || 'normal',
-              created_at: new Date(t.created_at).toISOString(),
-              updated_at: new Date(t.created_at).toISOString(),
-              user_email: userProfile?.email || 'usuario@example.com',
-              user_name: userProfile?.full_name || 'Usuário Real',
-              user_is_pro: false
-            };
-          });
-        }
-      } catch (taskError) {
-        console.warn("Failed to load tasks for tickets fallback:", taskError);
-      }
-      
+      console.error("Failed to list support tickets from DB:", e);
       const localTickets = JSON.parse(localStorage.getItem('zenos_local_support_tickets') || '[]');
-      return localTickets as SupportTicket[];
+      return localTickets;
     }
   },
 
@@ -864,10 +861,8 @@ export const adminService = {
     const ticket = {
       id: crypto.randomUUID(),
       user_id: userId,
-      subject,
-      description,
-      status: 'open',
-      priority,
+      message: description,
+      status: 'Pendente',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -876,52 +871,35 @@ export const adminService = {
       const localTickets = JSON.parse(localStorage.getItem('zenos_local_support_tickets') || '[]');
       localTickets.push({
         ...ticket,
+        subject,
+        description,
         user_email: 'everson.admin@example.com',
-        user_name: 'Everson Admin',
-        user_is_pro: true
+        user_name: 'Everson Admin'
       });
       localStorage.setItem('zenos_local_support_tickets', JSON.stringify(localTickets));
       return;
     }
 
-    try {
-      const { error } = await supabase.from('support_tickets').insert([ticket]);
-      if (error) throw error;
-    } catch (e) {
-      console.warn("Saving ticket failed. Saving to local storage fallback");
-      const localTickets = JSON.parse(localStorage.getItem('zenos_local_support_tickets') || '[]');
-      localTickets.push({
-        ...ticket,
-        user_email: 'everson.admin@example.com',
-        user_name: 'Everson Admin',
-        user_is_pro: true
-      });
-      localStorage.setItem('zenos_local_support_tickets', JSON.stringify(localTickets));
-    }
+    const { error } = await supabase.from('support_tickets').insert([ticket]);
+    if (error) throw error;
   },
 
   resolveSupportTicket: async (performerId: string, ticketId: string): Promise<void> => {
     if (isTestUser(performerId)) {
       const localTickets = JSON.parse(localStorage.getItem('zenos_local_support_tickets') || '[]');
-      const updated = localTickets.map((t: any) => t.id === ticketId ? { ...t, status: 'resolved', updated_at: new Date().toISOString() } : t);
+      const updated = localTickets.map((t: any) => t.id === ticketId ? { ...t, status: 'Resolvido', updated_at: new Date().toISOString() } : t);
       localStorage.setItem('zenos_local_support_tickets', JSON.stringify(updated));
       await adminService.createAuditLog(performerId, 'resolve_ticket', ticketId, 'Resolvido ticket de suporte');
       return;
     }
 
     try {
-      const { error } = await supabase.from('support_tickets').update({ status: 'resolved', updated_at: new Date().toISOString() }).eq('id', ticketId);
+      const { error } = await supabase.from('support_tickets').update({ status: 'Resolvido', updated_at: new Date().toISOString() }).eq('id', ticketId);
       if (error) throw error;
     } catch (e) {
-      console.warn("Resolving support ticket failed. Resolving in local storage fallback");
-      
-      // Também atualiza o status de tarefa caso seja uma task real
-      try {
-        await supabase.from('tasks').update({ status: 'completed' }).eq('id', ticketId);
-      } catch(taskErr) { }
-
+      console.warn("Resolving support ticket failed. Resolving in local storage fallback", e);
       const localTickets = JSON.parse(localStorage.getItem('zenos_local_support_tickets') || '[]');
-      const updated = localTickets.map((t: any) => t.id === ticketId ? { ...t, status: 'resolved', updated_at: new Date().toISOString() } : t);
+      const updated = localTickets.map((t: any) => t.id === ticketId ? { ...t, status: 'Resolvido', updated_at: new Date().toISOString() } : t);
       localStorage.setItem('zenos_local_support_tickets', JSON.stringify(updated));
     }
     await adminService.createAuditLog(performerId, 'resolve_ticket', ticketId, 'Resolvido ticket de suporte');
