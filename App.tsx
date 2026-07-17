@@ -733,6 +733,14 @@ export default function App() {
       showToast('Lançamento salvo localmente (modo offline)', 'info');
     }
 
+    // Se for inserção de receita, agenda recarga de dados para sincronizar os potes após o trigger do Postgres
+    const hasIncome = (Array.isArray(t) ? t : [t]).some(tx => tx.type === 'income');
+    if (hasIncome) {
+      setTimeout(() => {
+        if (activeUser) loadUserData(activeUser.id, true);
+      }, 800);
+    }
+
     const label = Array.isArray(t) ? 'Lançamentos registrados!' : `${(t as Transaction).type === 'income' ? 'Entrada' : 'Despesa'} registrada!`;
     showToast(label);
   };
@@ -1358,10 +1366,15 @@ export default function App() {
                 subcategories={subcategories}
                 accounts={processedAccounts}
                 pots={processedPots}
-                onAdd={handleAddTransaction} 
-                onDelete={(id) => {
+                onAdd={handleAddTransaction}
+                 onDelete={(id) => {
                   const removed = transactions.find(t => t.id === id);
                   updateAndSave((prev: Transaction[]) => prev.filter(t => t.id !== id), setTransactions, db.saveTransactions);
+                  if (removed?.type === 'income') {
+                    setTimeout(() => {
+                      if (activeUser) loadUserData(activeUser.id, true);
+                    }, 800);
+                  }
                   db.deleteRow('transactions', id).catch(err => {
                     console.error(err);
                     // Delete failed server-side: put it back so the UI never
@@ -1372,7 +1385,15 @@ export default function App() {
                     alert('Não foi possível excluir o lançamento. Verifique sua conexão e tente novamente.');
                   });
                 }}
-                onEdit={(updated) => updateAndSave((prev: Transaction[]) => prev.map(t => t.id === updated.id ? updated : t), setTransactions, db.saveTransactions)}
+                onEdit={(updated) => {
+                  const original = transactions.find(t => t.id === updated.id);
+                  updateAndSave((prev: Transaction[]) => prev.map(t => t.id === updated.id ? updated : t), setTransactions, db.saveTransactions);
+                  if (original?.type === 'income' || updated.type === 'income') {
+                    setTimeout(() => {
+                      if (activeUser) loadUserData(activeUser.id, true);
+                    }, 800);
+                  }
+                }}
                 onAddCategory={handleAddCategory}
                 onAddSubcategory={handleAddSubcategory}
                 preFilledData={preFilledTx}
