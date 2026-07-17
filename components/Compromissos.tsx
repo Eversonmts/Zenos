@@ -318,7 +318,7 @@ export default function Compromissos({ activeUserId, debts, accounts, cards = []
             </div>
          </div>
         
-         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
             {displayItems.map((item, index) => {
               let statusConfig = {
                  bg: 'bg-white dark:bg-[#111827]/60',
@@ -364,31 +364,31 @@ export default function Compromissos({ activeUserId, debts, accounts, cards = []
               }
 
               return (
-                <div key={`${item.originalDebtId}-${item.installmentNumber}-${index}`} className={`${statusConfig.bg} backdrop-blur-md border ${statusConfig.border} rounded-3xl p-6 relative group transition-all shadow-sm`}>
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all z-10 flex gap-2">
-                     <button onClick={() => handleOpenEdit(item.debt)} className="p-2 bg-white/50 dark:bg-black/20 rounded-full hover:bg-indigo-500 hover:text-white transition-colors text-slate-600" title="Editar">
-                       <Edit2 className="w-4 h-4" />
-                     </button>
-                     <button onClick={() => handleDelete(item.debt.id)} className="p-2 bg-white/50 dark:bg-black/20 rounded-full hover:bg-rose-500 hover:text-white transition-colors text-slate-600" title="Excluir">
-                       <X className="w-4 h-4" />
-                     </button>
+                <div key={`${item.originalDebtId}-${item.installmentNumber}-${index}`} className={`${statusConfig.bg} backdrop-blur-md border ${statusConfig.border} rounded-2xl md:rounded-3xl p-4 md:p-6 relative group transition-all shadow-sm`}>
+                  <div className="absolute top-2 right-2 md:top-4 md:right-4 opacity-0 group-hover:opacity-100 transition-all z-10 flex gap-1 md:gap-2">
+                      <button onClick={() => handleOpenEdit(item.debt)} className="p-1.5 md:p-2 bg-white/50 dark:bg-black/20 rounded-full hover:bg-indigo-500 hover:text-white transition-colors text-slate-600" title="Editar">
+                        <Edit2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      </button>
+                      <button onClick={() => handleDelete(item.debt.id)} className="p-1.5 md:p-2 bg-white/50 dark:bg-black/20 rounded-full hover:bg-rose-500 hover:text-white transition-colors text-slate-600" title="Excluir">
+                        <X className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                      </button>
                   </div>
 
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-2xl ${statusConfig.iconBg} ${statusConfig.iconColor}`}>
-                        <statusConfig.icon />
+                  <div className="flex justify-between items-start mb-3 md:mb-4 gap-2">
+                    <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
+                      <div className={`p-2 md:p-3 rounded-xl md:rounded-2xl ${statusConfig.iconBg} ${statusConfig.iconColor} flex-shrink-0`}>
+                        <statusConfig.icon className="w-4 h-4 md:w-5 md:h-5" />
                       </div>
-                      <div>
-                        <h4 className="font-bold text-[#212529] dark:text-white text-lg tracking-tight">{item.debt.description}</h4>
-                        <div className="flex gap-2 items-center mt-1 flex-wrap">
-                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${statusConfig.labelColor} bg-white/50 dark:bg-black/20`}>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-bold text-[#212529] dark:text-white text-sm md:text-lg tracking-tight truncate">{item.debt.description}</h4>
+                        <div className="flex gap-1.5 items-center mt-0.5 md:mt-1 flex-wrap">
+                            <span className={`text-[8px] md:text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md ${statusConfig.labelColor} bg-white/50 dark:bg-black/20`}>
                                 {statusConfig.label}
                             </span>
                             {item.debt.card_id && (() => {
                               const card = cards.find(c => c.id === item.debt.card_id);
                               return card ? (
-                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10">
+                                <span className="text-[8px] md:text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10">
                                   💳 {card.name}{card.last_4_digits ? ` •${card.last_4_digits}` : ''}
                                 </span>
                               ) : null;
@@ -396,36 +396,36 @@ export default function Compromissos({ activeUserId, debts, accounts, cards = []
                         </div>
                       </div>
                     </div>
-                    <div className="text-right pr-8 lg:pr-0">
-                      <p className="text-xs font-bold uppercase tracking-widest mb-1 text-[#4e545a] dark:text-slate-600">
+                    <div className="text-right flex-shrink-0 pr-6 md:pr-0">
+                      <p className="text-[8px] md:text-xs font-bold uppercase tracking-widest mb-0.5 md:mb-1 text-[#4e545a] dark:text-slate-600">
                         {item.status === 'paid' && paymentDateDisplay ? 'Pago em' : 'Vencimento'}
                       </p>
-                      <div className={`flex items-center justify-end gap-2 text-sm font-bold ${statusConfig.labelColor}`}>
-                        <Calendar className="w-4 h-4" />
+                      <div className={`flex items-center justify-end gap-1 md:gap-2 text-[10px] md:text-sm font-bold ${statusConfig.labelColor}`}>
+                        <Calendar className="w-3.5 h-3.5" />
                         {item.status === 'paid' && paymentDateDisplay ? paymentDateDisplay : formatDateObject(item.date)}
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="bg-white/50 dark:bg-black/20 p-3 rounded-2xl">
-                          <span className="text-[9px] text-[#4e545a] dark:text-slate-600 font-black uppercase block mb-1">A Pagar</span>
-                          <span className="text-lg font-bold text-[#212529] dark:text-slate-200">
+                  <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-4">
+                      <div className="bg-white/50 dark:bg-black/20 p-2.5 md:p-3 rounded-xl md:rounded-2xl">
+                          <span className="text-[8px] md:text-[9px] text-[#4e545a] dark:text-slate-600 font-black uppercase block mb-0.5 md:mb-1">A Pagar</span>
+                          <span className="text-sm md:text-lg font-bold text-[#212529] dark:text-slate-200">
                              R$ {formatCurrency(item.remainingAmount)}
                           </span>
                       </div>
-                      <div className="bg-white/50 dark:bg-black/20 p-3 rounded-2xl">
-                          <span className="text-[9px] text-[#4e545a] dark:text-slate-600 font-black uppercase block mb-1">Pago</span>
-                          <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                      <div className="bg-white/50 dark:bg-black/20 p-2.5 md:p-3 rounded-xl md:rounded-2xl">
+                          <span className="text-[8px] md:text-[9px] text-[#4e545a] dark:text-slate-600 font-black uppercase block mb-0.5 md:mb-1">Pago</span>
+                          <span className="text-sm md:text-lg font-bold text-emerald-600 dark:text-emerald-400">
                              R$ {formatCurrency(item.paidAmount)}
                           </span>
                       </div>
                   </div>
                   
                   {item.totalInstallments > 1 && (
-                    <div className="bg-slate-50 dark:bg-black/20 p-3 rounded-2xl mb-4">
-                        <span className="text-[9px] text-[#4e545a] dark:text-slate-600 font-black uppercase block mb-1">Restante Total da Dívida</span>
-                        <span className="text-sm font-bold text-[#212529] dark:text-slate-200">
+                    <div className="bg-slate-50 dark:bg-black/20 p-2.5 md:p-3 rounded-xl md:rounded-2xl mb-3 md:mb-4">
+                        <span className="text-[8px] md:text-[9px] text-[#4e545a] dark:text-slate-600 font-black uppercase block mb-0.5 md:mb-1">Restante Total da Dívida</span>
+                        <span className="text-xs md:text-sm font-bold text-[#212529] dark:text-slate-200">
                            R$ {formatCurrency(item.debt.total_amount - item.debt.paid_amount)} / R$ {formatCurrency(item.debt.total_amount)}
                         </span>
                     </div>
@@ -433,8 +433,8 @@ export default function Compromissos({ activeUserId, debts, accounts, cards = []
 
                   <div className="flex gap-2">
                     {item.status !== 'paid' && (
-                      <button onClick={() => handleOpenPayment(item)} className="flex-1 flex items-center justify-center gap-2 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-[11px] font-black uppercase tracking-widest text-[#212529] dark:text-slate-300 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm">
-                        <DollarSign className="w-4 h-4" /> Pagar
+                      <button onClick={() => handleOpenPayment(item)} className="flex-1 flex items-center justify-center gap-1.5 md:gap-2 py-2 md:py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl md:rounded-2xl text-[9px] md:text-[11px] font-black uppercase tracking-widest text-[#212529] dark:text-slate-300 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all shadow-sm">
+                        <DollarSign className="w-3.5 h-3.5" /> Pagar
                       </button>
                     )}
                     {item.totalInstallments > 1 && (

@@ -330,7 +330,7 @@ export default function Potes({
           return (
             <div
               key={account.id}
-              className={`bg-white dark:bg-[#111827]/40 p-6 rounded-[2rem] border border-slate-200 dark:border-white/5 group relative overflow-hidden transition-all hover:border-indigo-500/30 shadow-sm dark:shadow-none ${isExpanded ? 'col-span-2 lg:col-span-4' : ''}`}
+              className={`bg-white dark:bg-[#111827]/40 p-4 md:p-6 rounded-2xl md:rounded-[2rem] border border-slate-200 dark:border-white/5 group relative overflow-hidden transition-all hover:border-indigo-500/30 shadow-sm dark:shadow-none ${isExpanded ? 'col-span-2 lg:col-span-4' : ''}`}
             >
               {showModal === 'edit' && currentAccount.id === account.id ? (
                 <div className="animate-in fade-in duration-200">
@@ -342,10 +342,10 @@ export default function Potes({
                 </div>
               ) : (
               <>
-              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                <button onClick={() => setDetailAccount(isExpanded ? null : account)} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl" title="Detalhes"><ListTree className="w-4 h-4" /></button>
-                <button onClick={() => openEditModal(account)} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Edit2 className="w-4 h-4" /></button>
-                <button onClick={() => { if(confirm(`Excluir ${account.name}? As transações vinculadas perderão a referência de conta.`)) onUpdate(accounts.filter(p => p.id !== account.id)) }} className="p-2 text-[#4e545a] dark:text-slate-700 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Trash2 className="w-4 h-4" /></button>
+              <div className="absolute top-2 right-2 md:top-4 md:right-4 flex gap-1 md:gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                <button onClick={() => setDetailAccount(isExpanded ? null : account)} className="p-1.5 md:p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl" title="Detalhes"><ListTree className="w-3 h-3 md:w-4 md:h-4" /></button>
+                <button onClick={() => openEditModal(account)} className="p-1.5 md:p-2 text-[#4e545a] dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Edit2 className="w-3 h-3 md:w-4 md:h-4" /></button>
+                <button onClick={() => { if(confirm(`Excluir ${account.name}? As transações vinculadas perderão a referência de conta.`)) onUpdate(accounts.filter(p => p.id !== account.id)) }} className="p-1.5 md:p-2 text-[#4e545a] dark:text-slate-700 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl"><Trash2 className="w-3 h-3 md:w-4 md:h-4" /></button>
               </div>
 
               <button
@@ -353,18 +353,18 @@ export default function Potes({
                 onClick={() => setDetailAccount(isExpanded ? null : account)}
                 className="w-full text-left"
               >
-                <div className="bg-indigo-500/10 w-12 h-12 flex items-center justify-center rounded-2xl border border-indigo-500/20 mb-6">
-                  <Archive className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                <div className="bg-indigo-500/10 w-9 h-9 md:w-12 md:h-12 flex items-center justify-center rounded-xl md:rounded-2xl border border-indigo-500/20 mb-3 md:mb-6">
+                  <Archive className="w-4 h-4 md:w-6 md:h-6 text-indigo-600 dark:text-indigo-400" />
                 </div>
 
-                <h3 className="text-lg font-black text-[#212529] dark:text-white mb-1 tracking-tight truncate pr-10">{account.name}</h3>
-                <span className="text-[10px] font-black text-indigo-600/80 dark:text-indigo-500/80 uppercase tracking-widest block mb-4">Rateio: {account.percentage}%</span>
+                <h3 className="text-sm md:text-lg font-black text-[#212529] dark:text-white mb-0.5 tracking-tight truncate pr-6 md:pr-10">{account.name}</h3>
+                <span className="text-[8px] md:text-[10px] font-black text-indigo-600/80 dark:text-indigo-500/80 uppercase tracking-widest block mb-3 md:mb-4">Rateio: {account.percentage}%</span>
 
-                <div className="pt-4 border-t border-slate-100 dark:border-white/5">
-                  <p className="text-[9px] text-[#4e545a] dark:text-slate-700 uppercase font-black tracking-widest mb-1">
+                <div className="pt-3 md:pt-4 border-t border-slate-100 dark:border-white/5">
+                  <p className="text-[8px] md:text-[9px] text-[#4e545a] dark:text-slate-700 uppercase font-black tracking-widest mb-0.5 md:mb-1">
                     {isPeriodView ? 'Fluxo do Período' : 'Saldo Acumulado'}
                   </p>
-                  <p className={`text-4xl font-black tracking-tighter ${displayBalance >= 0 ? 'text-[#212529] dark:text-slate-200' : 'text-rose-500'}`}>
+                  <p className={`text-lg sm:text-2xl md:text-4xl font-black tracking-tighter ${displayBalance >= 0 ? 'text-[#212529] dark:text-slate-200' : 'text-rose-500'}`}>
                     R$ {formatCurrency(displayBalance)}
                   </p>
                 </div>
