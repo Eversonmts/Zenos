@@ -283,6 +283,19 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Aba de Suporte no App**: Criamos a aba "Suporte" no menu de navegação lateral (`Support.tsx`) com um formulário que aceita anexo de fotos. As imagens anexadas são convertidas localmente para Base64 (Data URI) e salvas de forma compacta e segura no banco de dados na coluna `image_url` (sem dependência de Storage externo complexo).
   * **Painel do Administrador**: Integramos os novos chamados e o preview de fotos anexadas no painel administrativo (`AdminDashboard.tsx`) sob a aba "Segurança & Suporte", permitindo ao administrador (ex: `mattos.mmn@gmail.com`) visualizar os chamados reais com e-mail/nome do usuário, ver o print anexo e marcá-los como "Resolvido".
 
+### 30. Módulo de Orçamentos na Visão Geral e Reformulação de Cartões (Limite e Histórico)
+* **O Problema**:
+  1. A seção de Orçamentos ficava oculta na Visão Geral (Dashboard) caso o usuário não tivesse nenhum limite ativo cadastrado, o que tornava a tela incompleta.
+  2. A tabela `cards` no Supabase remoto não havia sido criada física e estruturalmente no novo banco de dados.
+  3. No cadastro de cartões, os campos de "melhor dia de compra" e "vencimento" vinham preenchidos por padrão, e aceitavam números longos inválidos (mais de 2 caracteres).
+  4. Os cards dos cartões não exibiam o valor do limite disponível, e faltava uma seção com o histórico corrido de despesas de cada cartão.
+* **A Solução**:
+  * **Dashboard**: Modificamos [Dashboard.tsx](file:///C:/Users/Everson/AppData/Local/Temp/components/Dashboard.tsx) para renderizar a seção de "Orçamentos" sempre ativa na Visão Geral. Se vazia, exibe um estado motivador de UX convidando a criar limites de gastos.
+  * **Banco de Dados**: Criamos fisicamente a tabela `public.cards` no Supabase remoto com chaves estrangeiras vinculadas aos perfis de usuários, RLS ativo e triggers de atualização.
+  * **Cartões - UX do Formulário**: Reformulamos os inputs de dia de fechamento e vencimento no modal de [Cartoes.tsx](file:///C:/Users/Everson/AppData/Local/Temp/components/Cartoes.tsx) para virem limpos/vazios por padrão. Agora aceitam apenas caracteres numéricos e possuem limite físico de até 2 números (máximo de 31 dias).
+  * **Cartões - Limite Disponível**: Exibimos no card principal de cada cartão o cálculo automático de Limite Disponível (`Limite Total - Fatura em Aberto`), exibido com destaque em verde.
+  * **Cartões - Histórico de Compras**: Adicionamos uma seção dedicada de "Histórico de Gastos" dentro do painel expandido do cartão, listando todas as compras associadas ao cartão por ordem de data, com valores e badges de status (Pago / Aberto).
+
 ---
 
 ## 📌 Guia de Deploy Vercel
