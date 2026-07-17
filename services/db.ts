@@ -687,7 +687,12 @@ export const db = {
   saveDebts: async (userId: string, debts: Debt[]) => {
     saveLocalData(userId, { debts });
     if (isTestUser(userId)) return;
-    const { error } = await supabase.from('debts').upsert(debts.map(d => ({ ...d, user_id: userId })));
+    const { error } = await supabase.from('debts').upsert(debts.map(d => ({
+      ...d,
+      user_id: userId,
+      created_at: d.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })));
     if (error) { console.error("Failed to save debts:", error); throw error; }
   },
 
