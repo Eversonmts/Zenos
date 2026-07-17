@@ -261,6 +261,20 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Ajuste Estrutural**: Conectamos via Postgres e adicionamos a coluna `is_sync_enabled BOOLEAN DEFAULT true` na tabela `public.settings` no Supabase remoto.
   * **Saúde Geral Atestada**: Reexecutamos o teste de saúde em todas as tabelas (`profiles`, `categories`, `subcategories`, `pots`, `transactions`, `transaction_allocations`, `goals`, `debts`, `settings`) e todas retornaram **100% de sucesso**. O banco remoto está perfeito!
 
+### 28. Implantação Física das Tabelas Auxiliares (Notas, Tarefas, Diário, Calendário, Lista de Compras)
+* **O Problema**: Notas, tarefas, diários, compromissos do calendário e itens de listas de compras criados no aplicativo local sumiam inteiramente após atualizar a página (F5).
+* **A Causa**: Nenhuma das tabelas auxiliares necessárias para essas funções (`notes`, `tasks`, `journal`, `calendar`, `shopping_list`) existia fisicamente no banco de dados remoto do Supabase do novo projeto. As chamadas `.upsert()` do Supabase JS Client falhavam silenciosamente com erro de tabela inexistente (404), fazendo o app carregar listas vazias no F5/recarregamento.
+* **A Solução**:
+  * Conectamos ao seu Postgres remoto via script e criamos fisicamente todas as 5 tabelas no schema `public`:
+    1.  **`public.notes`**: Para notas pessoais do usuário.
+    2.  **`public.tasks`**: Para gerenciamento de tarefas.
+    3.  **`public.journal`**: Para os diários pessoais de humor e anotações.
+    4.  **`public.calendar`**: Para eventos e compromissos do calendário.
+    5.  **`public.shopping_list`**: Para os itens da lista de compras.
+  * Habilitamos o RLS em todas as 5 tabelas com políticas de acesso isoladas por usuário (`auth.uid() = user_id`).
+  * Adicionamos os triggers de atualização de data de modificação (`update_updated_at_column`) a cada uma delas.
+  * A partir de agora, notas, tarefas, diários, eventos do calendário e itens da lista de compras serão salvos em tempo real e de forma permanente no seu Supabase!
+
 ---
 
 ## 📌 Guia de Deploy Vercel
