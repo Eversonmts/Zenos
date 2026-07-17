@@ -294,7 +294,16 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Banco de Dados**: Criamos fisicamente a tabela `public.cards` no Supabase remoto com chaves estrangeiras vinculadas aos perfis de usuários, RLS ativo e triggers de atualização.
   * **Cartões - UX do Formulário**: Reformulamos os inputs de dia de fechamento e vencimento no modal de [Cartoes.tsx](file:///C:/Users/Everson/AppData/Local/Temp/components/Cartoes.tsx) para virem limpos/vazios por padrão. Agora aceitam apenas caracteres numéricos e possuem limite físico de até 2 números (máximo de 31 dias).
   * **Cartões - Limite Disponível**: Exibimos no card principal de cada cartão o cálculo automático de Limite Disponível (`Limite Total - Fatura em Aberto`), exibido com destaque em verde.
-  * **Cartões - Histórico de Compras**: Adicionamos uma seção dedicada de "Histórico de Gastos" dentro do painel expandido do cartão, listando todas as compras associadas ao cartão por ordem de data, com valores e badges de status (Pago / Aberto).
+  * **Cartões - Histórico de Compras**: Adicionamos uma seção dedicada de "Histórico de Gastos" dentro do painel expandido do cartão, listando todas as compras associadas ao cartão por ordem de data, com valores e badges de status (Pago / Abreto).
+
+### 31. Ocultação Automática da Barra de Navegação Inferior (Scroll Hide no Mobile)
+* **O Problema**: Em smartphones, a barra de navegação inferior (`BottomNav`) ocupava espaço fixo na tela o tempo todo, diminuindo a área útil de leitura e navegação do app. O comportamento anterior de tentar ocultar a barra via hook `useScroll` do Framer Motion falhava silenciosamente em mobile devido à inicialização tardia do container de rolagem (`null ref` na montagem do DOM).
+* **A Solução**:
+  * **Transição Nativa de Scroll**: Substituímos a dependência do `useScroll` por um listener nativo de rolagem no container principal (`<main>` do `App.tsx`).
+  * **Rastreamento via useRef**: Implementamos o monitoramento de velocidade e direção da rolagem utilizando um `useRef` para armazenar a última posição. Isso garante processamento instantâneo sem causar rerenders e sem lag no celular.
+  * **Comportamento Premium**:
+    - **Rolar para Baixo**: A barra esconde de forma suave deslizando para fora da tela (e fecha o FAB central se estiver aberto).
+    - **Rolar para Cima**: A barra retorna suavemente ao seu lugar original.
 
 ---
 
