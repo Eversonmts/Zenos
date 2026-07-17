@@ -211,6 +211,15 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Atualização do Mapeador**: Modificamos o `cleanTxs` no [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) para mapear e enviar corretamente os campos `pot_id` e `subcategory_id` na chamada de persistência do Supabase.
   * **Fluxo de Novos Usuários**: O trigger `handle_new_user` no Supabase remoto está 100% íntegro e garante que qualquer cadastro crie automaticamente o perfil, configurações iniciais de tema, categorias padrão de transação e semeie os três potes ("Essencial", "Investimentos", "Lazer").
 
+### 22. Unificação e Coerência de Exibição de Saldos dos Potes
+* **O Problema**: Havia uma discrepância visual nos saldos exibidos para os potes no Dashboard:
+  1. O **card fechado** do pote exibia a variação mensal de fluxo de caixa (`monthFlow`, ex: `+R$ 1.000,00`).
+  2. O **card aberto** (tela de detalhes ao clicar) exibia o saldo acumulado total (`balance`, ex: `R$ 5.000,00`).
+  Essa diferença criava a sensação de que os saldos não estavam se comunicando nem entre si e nem com a soma do *"Saldo Disponível"* global no cabeçalho.
+* **A Solução**:
+  * Ajustamos o card fechado do pote no [Dashboard.tsx](file:///C:/Users/Everson/AppData/Local/Temp/components/Dashboard.tsx) (linha 471) para renderizar o **saldo acumulado real** do pote (`account.displayBalance`), igualando-o à visualização aberta do card.
+  * O saldo exibido agora é uniforme e coerente em todos os estados do card (aberto ou fechado), somando exatamente para compor o *"Saldo Disponível"* global do cabeçalho e alinhado perfeitamente com a aba dedicada de *"Potes"* do menu.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
