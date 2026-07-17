@@ -342,6 +342,22 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * **Detalhamento de Orçamentos no Dashboard**:
     - Atualizamos o card de Orçamentos no [Dashboard.tsx](file:///C:/Users/Everson/AppData/Local/Temp/components/Dashboard.tsx) para exibir textualmente o valor total do orçamento da categoria e o quanto já foi gasto dela (exemplo: `Gasto: R$ 800,00 de R$ 1.000,00`), alinhado abaixo do nome da categoria com a porcentagem correspondente ao lado.
 
+### 35. Compactação Visual de Cards (Potes, Metas e Compromissos) no Celular
+* **O Problema**: No celular, os cards das telas de Potes, Metas e Compromissos estavam gigantescos, ocupando quase toda a altura e largura útil da tela e exigindo muita rolagem.
+* **A Solução**:
+  * **Metas (`Goals.tsx`)**:
+    - Ajustamos o layout grid de 1 coluna para 2 colunas responsivas a partir de telas pequenas (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4`).
+    - Compactamos em 50% o tamanho visual do card de metas no mobile: reduzimos o padding de `p-8` para `p-4 md:p-6`, a caixa lateral do troféu de `w-24` para `w-16 md:w-24`, o título de `text-xl` para `text-sm md:text-xl`, o valor faltante de `text-lg` para `text-xs md:text-lg`, e os botões inferiores de `py-3` para `py-2 md:py-3`.
+  * **Potes (`Potes.tsx`)**:
+    - O grid já era de 2 colunas, mas os cards internos eram muito altos.
+    - Reduzimos o padding do card de potes de `p-6` para `p-4 md:p-6` e as bordas de `rounded-[2rem]` para `rounded-2xl md:rounded-[2rem]`.
+    - Reduzimos o ícone acumulado de `w-12 h-12 mb-6` para `w-9 h-9 mb-3 md:mb-6` e o tamanho do saldo de `text-4xl` para `text-lg sm:text-2xl md:text-4xl`.
+  * **Compromissos (`Compromissos.tsx`)**:
+    - Atualizamos o grid de compromissos para se organizar em 2 colunas a partir de tablets (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4`).
+    - Reduzimos o padding do card de `p-6` para `p-4 md:p-6` e bordas para `rounded-2xl md:rounded-3xl`.
+    - Compactamos as caixas internas de A Pagar/Pago de `p-3 rounded-2xl` para `p-2.5 rounded-xl` e fontes de `text-lg` para `text-sm md:text-lg`.
+    - Enxugamos os botões de ação e seus ícones para ocupar muito menos espaço no mobile.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
