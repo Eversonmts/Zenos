@@ -373,6 +373,11 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   - **Alteração DDL no Supabase**: Conectamos ao banco Postgres remoto e criamos fisicamente as quatro colunas ausentes (`card_id` como FK de cards, `category_id` como FK de categories, `subcategory_id` como FK de subcategories e `installment_number` como integer). Definimos também o valor padrão de auditoria (`DEFAULT now()`) para `created_at` e `updated_at`.
   - **Injeção de Auditoria no Frontend**: Atualizamos o método `saveDebts` em [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) para injetar e mapear datas de auditoria de forma consistente no payload do Supabase.
 
+### 38. Padronização de Rótulo de Navegação (De Dívidas para Compromissos)
+* **O Problema**: No menu lateral (`Sidebar`), o link que levava à visualização de Compromissos estava rotulado como "Dívidas", gerando inconsistência visual e confusão de termos com o restante do aplicativo (onde se usa "Compromissos").
+* **A Solução**:
+  - Alteramos de forma cirúrgica na definição de `navItems` no [App.tsx](file:///C:/Users/Everson/AppData/Local/Temp/App.tsx) o rótulo do item `compromissos` de `'Dívidas'` para `'Compromissos'`. Agora os menus mobile e desktop estão 100% padronizados e harmônicos com a visualização inicial do sistema.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
