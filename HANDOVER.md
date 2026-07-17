@@ -305,6 +305,16 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
     - **Rolar para Baixo**: A barra esconde de forma suave deslizando para fora da tela (e fecha o FAB central se estiver aberto).
     - **Rolar para Cima**: A barra retorna suavemente ao seu lugar original.
 
+### 32. Ativação Estrutural de Orçamentos e Melhorias Estéticas no Modo Escuro (Menus Mobile)
+* **O Problema**:
+  1. A tabela `budgets` (Orçamentos) não existia no banco de dados remoto do Supabase, o que impedia a permanência dos limites criados pelo usuário.
+  2. No modo escuro do celular, os botões inativos tanto do menu inferior (`BottomNav`) quanto da barra de navegação lateral (`Sidebar`) ficavam com um tom cinza escuro de baixíssimo contraste e, ao serem clicados ou tocados, piscavam para branco (flicker de foco).
+* **A Solução**:
+  * **Banco de Dados**: Criamos fisicamente a tabela `public.budgets` no Supabase remoto com todas as chaves estrangeiras vinculadas de RLS e triggers de atualização. A tabela de compromissos (`public.calendar`) já estava ativada e operacional.
+  * **Estilização de Menus (Modo Escuro)**:
+    - Alteramos a cor dos textos e ícones inativos nos botões do menu inferior de `dark:text-slate-400 dark:hover:text-white` para `dark:text-white` (branco puro permanente), removendo o efeito indesejado de alteração de cor ao tocar no celular.
+    - Alteramos a cor dos links inativos no menu da gaveta lateral (`App.tsx`) de `dark:text-slate-600` para `dark:text-white` (branco puro permanente). Os itens agora têm contraste visual máximo e leitura perfeita no tema escuro.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
