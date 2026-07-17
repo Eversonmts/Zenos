@@ -468,8 +468,8 @@ export default function Dashboard({
                        <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-[10px] font-black uppercase tracking-widest truncate text-slate-800 dark:text-slate-200">{account.name}</span>
-                            <span className={`text-xs font-black tracking-tighter ${account.monthFlow >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                              {account.monthFlow >= 0 ? '+' : ''}R$ {formatCurrency(account.monthFlow)}
+                             <span className="text-xs font-black tracking-tighter text-indigo-500">
+                              R$ {formatCurrency(account.displayBalance)}
                             </span>
                           </div>
                           <span className="text-[8px] font-black text-slate-400 uppercase ml-2">{account.percentage}%</span>
@@ -479,7 +479,7 @@ export default function Dashboard({
                             className="h-full transition-all duration-700" 
                             style={{ 
                               width: `${progress}%`,
-                              backgroundColor: account.monthFlow < 0 ? '#f43f5e' : color
+                              backgroundColor: color
                             }}
                           ></div>
                        </div>
