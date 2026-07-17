@@ -275,6 +275,14 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
   * Adicionamos os triggers de atualização de data de modificação (`update_updated_at_column`) a cada uma delas.
   * A partir de agora, notas, tarefas, diários, eventos do calendário e itens da lista de compras serão salvos em tempo real e de forma permanente no seu Supabase!
 
+### 29. Canal e Tabela de Suporte Dedicado com Anexo de Fotos
+* **O Problema**: O aplicativo utilizava a tabela `tasks` (Tarefas) de forma mista para armazenar chamados de suporte dos usuários comuns. Isso poluía as tarefas pessoais do usuário e impedia o envio de imagens (como prints de problemas/telas) para ajudar o administrador a entender os chamados.
+* **A Solução**:
+  * **Tabela no Banco**: Criamos fisicamente a tabela `public.support_tickets` no Supabase remoto com colunas dedicadas a chamados de suporte: `id`, `user_id`, `message` (mensagem do chamado), `image_url` (para anexo do print) e `status` (`Pendente`, `Em Andamento`, `Resolvido`, `Fechado`).
+  * **Segurança e RLS**: Habilitamos RLS com política permitindo usuários comuns criarem e visualizarem apenas seus próprios chamados (`auth.uid() = user_id`) e administradores visualizarem e resolverem todos os chamados.
+  * **Aba de Suporte no App**: Criamos a aba "Suporte" no menu de navegação lateral (`Support.tsx`) com um formulário que aceita anexo de fotos. As imagens anexadas são convertidas localmente para Base64 (Data URI) e salvas de forma compacta e segura no banco de dados na coluna `image_url` (sem dependência de Storage externo complexo).
+  * **Painel do Administrador**: Integramos os novos chamados e o preview de fotos anexadas no painel administrativo (`AdminDashboard.tsx`) sob a aba "Segurança & Suporte", permitindo ao administrador (ex: `mattos.mmn@gmail.com`) visualizar os chamados reais com e-mail/nome do usuário, ver o print anexo e marcá-los como "Resolvido".
+
 ---
 
 ## 📌 Guia de Deploy Vercel
