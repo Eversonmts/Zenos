@@ -378,6 +378,12 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
 * **A Solução**:
   - Alteramos de forma cirúrgica na definição de `navItems` no [App.tsx](file:///C:/Users/Everson/AppData/Local/Temp/App.tsx) o rótulo do item `compromissos` de `'Dívidas'` para `'Compromissos'`. Agora os menus mobile e desktop estão 100% padronizados e harmônicos com a visualização inicial do sistema.
 
+### 39. Configuração de Potes Padrão Geral (90%) e Reserva (10%) e Blindagem Numérica
+* **O Problema**: A inicialização do aplicativo criava potes e contas padrão sob o modelo anterior ("Operacional 60%" / "Reserva 40%"). Além disso, falhas no parsing de valores numéricos de potes (campos que vinham vazios e resultavam e `NaN`) podiam travar silenciosamente a comunicação com a tabela `pots` no Supabase remoto.
+* **A Solução**:
+  - **Potes Iniciais Padronizados**: Alteramos as contas padrão de fallback em `INITIAL_ACCOUNTS` no [App.tsx](file:///C:/Users/Everson/AppData/Local/Temp/App.tsx) e os dados de semeação de banco em `ensureDefaultAccounts` e `ensureDefaultPots` no [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) para iniciar novos usuários exatamente com dois potes: **Geral (90%)** e **Reserva (10%)**. A soma total de potes criados/migrados agora é restrita a exatamente 100%.
+  - **Blindagem contra NaNs**: Atualizamos o mapeador no método `savePots` do [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) para validar de forma resiliente (`isNaN()`) antes de enviar o payload de upsert de percentuais e saldos para o Postgres do Supabase.
+
 ---
 
 ## 📌 Guia de Deploy Vercel
