@@ -387,11 +387,18 @@ Este documento registra cronologicamente todas as modificações, melhorias de U
 ### 40. Correção de Sincronização de Exclusão de Potes (Soft-Delete na Tabela pots)
 * **O Problema**: Quando o usuário excluía um pote ou criava novos substituindo os antigos no app, os potes antigos reapareciam na próxima recarga de página.
 * **A Causa**:
-  1. O método `savePots` realizava apenas um `upsert` dos potes ativos recebidos. Os potes deletados localmente não eram informados no payload de upsert e permaneciam órfãos e ativos no Supabase remoto, sendo carregados novamente na inicialização do app.
+  1. O método `savePots` realizava apenas um `upsert` dos potes ativos recebidos. Os potes deletados localmente não eram informados no payload de upsert e permaneciam órfãos e ativos no Supabase remoto, sendo carregados novamente no `ensureDefaultPots`.
   2. A constante `INITIAL_ACCOUNTS` (fallback de contas físicas) possuía o campo `percentage: 90` e `percentage: 10` definido na memória do frontend. Ao salvar contas físicas no banco, elas eram enviadas com esses percentuais, disparando de forma cíclica e incorreta a rotina de migração e duplicação automática de potes virtuais no `ensureDefaultPots`.
 * **A Solução**:
   - **Soft-Delete de Potes Removidos**: Atualizamos o método `savePots` em [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) para realizar uma instrução de atualização no Supabase com `deleted_at = now()` para todos os potes daquele usuário que **não constam** no novo array de IDs ativos enviados pelo frontend.
   - **Limpeza de Propriedade de Fallback**: Removemos o atributo `percentage` da constante `INITIAL_ACCOUNTS` no [App.tsx](file:///C:/Users/Everson/AppData/Local/Temp/App.tsx) (uma vez que contas físicas não possuem percentual de rateio, reservado unicamente para potes virtuais), eliminando a reativação cíclica de potes antigos.
+
+### 41. Correção de Sintaxe do Operador not in em savePots (PostgREST Client)
+* **O Problema**: Após adicionar a sincronização de exclusão, as operações de criação e salvamento de novos potes virtuais pararam de persistir no Supabase remoto.
+* **A Causa**: No cliente javascript do Supabase (PostgREST), o operador de negação e filtro `.not('col', 'in', value)` espera uma string estruturada no formato de tupla do SQL (ex: `(id1,id2,id3)`), e não aceita um array javascript puro diretamente. O envio do array puro causava um erro interno no middleware da biblioteca que interrompia a execução da Promise, travando o upsert seguinte.
+* **A Solução**:
+  - Ajustamos a chamada no [db.ts](file:///C:/Users/Everson/AppData/Local/Temp/services/db.ts) para formatar dinamicamente a string de tupla: `not('id', 'in', `(${activeIds.join(',')})`)`.
+  - Envolvemos a instrução de soft-delete de potes inativos em um bloco `try-catch` para isolar erros locais na operação de remoção, garantindo que o salvamento principal (`upsert`) dos novos potes seja sempre executado de forma resiliente.
 
 ---
 
