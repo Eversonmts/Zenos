@@ -666,6 +666,23 @@ export const db = {
     saveLocalData(userId, { pots });
     if (isTestUser(userId)) return;
 
+    // Soft-deleta no Supabase os potes que não estão no novo array enviado
+    const activeIds = pots.map(p => p.id);
+    if (activeIds.length > 0) {
+      await supabase
+        .from('pots')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .not('id', 'in', activeIds);
+    } else {
+      await supabase
+        .from('pots')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .is('deleted_at', null);
+    }
+
     // Sanitização estrita: envia apenas as colunas reais da tabela pots no Supabase
     const cleanPots = pots.map(p => {
       const percentageNum = Number(p.percentage || 0);
@@ -683,8 +700,10 @@ export const db = {
       };
     });
 
-    const { error } = await supabase.from('pots').upsert(cleanPots);
-    if (error) { console.error("Failed to save pots:", error); throw error; }
+    if (cleanPots.length > 0) {
+      const { error } = await supabase.from('pots').upsert(cleanPots);
+      if (error) { console.error("Failed to save pots:", error); throw error; }
+    }
   },
 
   saveDebts: async (userId: string, debts: Debt[]) => {
