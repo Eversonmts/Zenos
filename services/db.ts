@@ -491,7 +491,7 @@ export const db = {
     if ((count ?? 0) > 0) return existingAccounts;
 
     const defaults = [
-      { user_id: userId, name: 'Operacional', type: 'bank', balance_initial: 0, current_balance: 0, is_active: true, color: '#4F46E5' },
+      { user_id: userId, name: 'Geral', type: 'bank', balance_initial: 0, current_balance: 0, is_active: true, color: '#4F46E5' },
       { user_id: userId, name: 'Reserva', type: 'investment', balance_initial: 0, current_balance: 0, is_active: true, color: '#10B981' }
     ];
 
@@ -578,9 +578,8 @@ export const db = {
     if ((count ?? 0) > 0) return existingPots;
 
     const defaults = [
-      { user_id: userId, name: 'Essencial', percentage: 50, current_balance: 0, color: '#4F46E5' },
-      { user_id: userId, name: 'Investimentos', percentage: 30, current_balance: 0, color: '#10B981' },
-      { user_id: userId, name: 'Lazer', percentage: 20, current_balance: 0, color: '#EC4899' }
+      { user_id: userId, name: 'Geral', percentage: 90, current_balance: 0, color: '#4F46E5' },
+      { user_id: userId, name: 'Reserva', percentage: 10, current_balance: 0, color: '#10B981' }
     ];
 
     try {
@@ -668,17 +667,21 @@ export const db = {
     if (isTestUser(userId)) return;
 
     // Sanitização estrita: envia apenas as colunas reais da tabela pots no Supabase
-    const cleanPots = pots.map(p => ({
-      id: p.id,
-      user_id: userId,
-      name: p.name,
-      percentage: Number(p.percentage || 0),
-      current_balance: Number(p.current_balance || 0),
-      color: p.color || null,
-      created_at: p.created_at || new Date().toISOString(),
-      updated_at: p.updated_at || new Date().toISOString(),
-      deleted_at: p.deleted_at || null
-    }));
+    const cleanPots = pots.map(p => {
+      const percentageNum = Number(p.percentage || 0);
+      const balanceNum = Number(p.current_balance || 0);
+      return {
+        id: p.id,
+        user_id: userId,
+        name: p.name,
+        percentage: isNaN(percentageNum) ? 0 : percentageNum,
+        current_balance: isNaN(balanceNum) ? 0 : balanceNum,
+        color: p.color || null,
+        created_at: p.created_at || new Date().toISOString(),
+        updated_at: p.updated_at || new Date().toISOString(),
+        deleted_at: p.deleted_at || null
+      };
+    });
 
     const { error } = await supabase.from('pots').upsert(cleanPots);
     if (error) { console.error("Failed to save pots:", error); throw error; }
