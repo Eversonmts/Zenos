@@ -668,19 +668,24 @@ export const db = {
 
     // Soft-deleta no Supabase os potes que não estão no novo array enviado
     const activeIds = pots.map(p => p.id);
-    if (activeIds.length > 0) {
-      await supabase
-        .from('pots')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .is('deleted_at', null)
-        .not('id', 'in', activeIds);
-    } else {
-      await supabase
-        .from('pots')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .is('deleted_at', null);
+    try {
+      if (activeIds.length > 0) {
+        // PostgREST exige string de tupla formatada para o operador 'in' aninhado no 'not'
+        await supabase
+          .from('pots')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .not('id', 'in', `(${activeIds.join(',')})`);
+      } else {
+        await supabase
+          .from('pots')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .is('deleted_at', null);
+      }
+    } catch (err) {
+      console.error("Failed to soft-delete inactive pots:", err);
     }
 
     // Sanitização estrita: envia apenas as colunas reais da tabela pots no Supabase
