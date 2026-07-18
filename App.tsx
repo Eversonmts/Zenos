@@ -43,8 +43,8 @@ import { checkLatestVersion } from './services/versionService';
 
 // Default Constants (Fallback)
 const INITIAL_ACCOUNTS: Account[] = [
-  { id: crypto.randomUUID(), user_id: '', name: 'Geral', type: 'bank', balance_initial: 0, current_balance: 0, percentage: 90, is_active: true, color: '#4F46E5', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-  { id: crypto.randomUUID(), user_id: '', name: 'Reserva', type: 'investment', balance_initial: 0, current_balance: 0, percentage: 10, is_active: true, color: '#10B981', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: crypto.randomUUID(), user_id: '', name: 'Geral', type: 'bank', balance_initial: 0, current_balance: 0, is_active: true, color: '#4F46E5', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: crypto.randomUUID(), user_id: '', name: 'Reserva', type: 'investment', balance_initial: 0, current_balance: 0, is_active: true, color: '#10B981', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
 ];
 
 const DEFAULT_CATEGORIES: Category[] = [
